@@ -7,19 +7,26 @@ app.use(express.json());
 
 // Datos en memoria de usuarios
 let usuarios = [
-    {id: 1, nombre: "admin", password: "admin", rol: "admin"},
+    {id: 1, nombre: "admin", apellido1: "", apellido2: "", correo: "admin@gmail.com", admin: 1, premium: 1, pass: "admin", token: "", urlImagen: ""},
+];
+
+// Datos en memoria de genero
+let generos = [
+    {id: 1, nombre: "Pop"}, {id: 2, nombre: "Rock"}
 ];
 
 // Datos en memoria de canciones
 let canciones = [
-    { id: 1, titulo: "Yonaguni", artista: "Bad Bunny" },
-    { id: 2, titulo: "Saoko", artista: "Rosalía" }
+    { id: 1, nombre: "Yonaguni", artista: "Bad Bunny", album:"Un Verano Sin Ti", genero: 1, likes: 0, urlAudio:"", ulrPortada:""},
 ];
+
+// Lista de canciones
+let listas_canciones = [];
 
 // Login
 app.post('/login', (req, res) => {
-    const { nombre, password } = req.body;
-    const user = usuarios.find(u => u.nombre === nombre && u.password === password);
+    const { nombre, pass } = req.body;
+    const user = usuarios.find(u => u.nombre === nombre && u.pass === pass);
     if (user) {
         res.json(user);
     } else{
@@ -73,6 +80,23 @@ app.put('/canciones/:id', (req, res) => {
 app.delete('/canciones/:id', (req, res) => {
     canciones = canciones.filter(c => c.id != req.params.id);
     res.json({ mensaje: "Borrado" });
+});
+
+// Rutas para generos
+app.get('/generos', (req, res) => res.json(generos));
+
+// CRUB: Listas canciones
+app.get('/listas_canciones', (req, res) => res.json(listas_canciones));
+
+app.post('/listas_canciones', (req, res) => {
+    const nueva = { id: Date.now(), ...req.body };
+    listas_canciones.push(nueva);
+    res.json(nueva);
+});
+
+app.delete('/listas_canciones/:id', (req, res) => {
+    listas_canciones = listas_canciones.filter(l => l.id != req.params.id);
+    res.json({ mensaje: "Lista borrada" });
 });
 
 app.listen(5000, () => console.log("Servidor en puerto 5000"));
