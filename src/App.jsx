@@ -34,9 +34,12 @@ function App() {
     // Estados de formulario listas
     const [nombreLista, setNombreLista] = useState('');
 
-    const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
+    // Estado para el nuevo genero
+    const [nombreGenero, setNombreGenero] = useState('');
 
-    // Carga los datos usando el token del usuario
+    const baseUrl = "https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev/api";
+    //const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
+
     const loadData = () => {
         if (!user) return;
 
@@ -53,9 +56,9 @@ function App() {
         fetch(`${baseUrl}/generos`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => {
-                console.log("Géneros recibidos:", data);
                 if (Array.isArray(data)) setGeneros(data);
-            });
+            })
+            .catch(err => console.error("Error al cargar géneros:", err));
 
         fetch(`${baseUrl}/usuarios/${user.id}/listas`, { headers: headersConToken })
             .then(r => r.json())
@@ -96,7 +99,7 @@ function App() {
         }else {
             fetch(`${baseUrl}/login`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true'},
                 body: JSON.stringify({correo: authCorreo, pass: authPass})
             })
             .then(r => r.json())
@@ -138,7 +141,9 @@ function App() {
 
         fetch(url, {
             method: method,
-            headers: { 'Authorization': `Bearer ${user.token}` },
+            headers: { 'Authorization': `Bearer ${user.token}`,
+                'ngrok-skip-browser-warning': 'true'
+            },
             body: formData
         }).then(() =>{
             setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
@@ -150,11 +155,24 @@ function App() {
 
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
+    // CRUD Generos (admin)
+    const saveGenero = (e) => {
+        e.preventDefault();
+        fetch(`${baseUrl}/generos`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({id: 0, nombre: nombreGenero})
+        }).then(() =>{
+            setNombreGenero('');
+            loadData();
+        }).catch(err => console.log(err));
+    };
+
     // CRUD Usuarios (admin)
     const saveUsuario = (e) => {
         e.preventDefault();
         const method = editUserId ? 'PUT' : 'POST';
-        const url = editUserId ? `${baseUrl}/usuarios/${editUserId}` : `${baseUrl}/usuarios`;
+        const url = editUserId ? `${baseUrl}/usuario/${editUserId}` : `${baseUrl}/usaurio`;
 
         fetch(url, {
             method: method, headers: getHeaders(),
@@ -220,38 +238,88 @@ function App() {
             {vista === 'canciones' && (
                 <div>
                     {user.admin && (
-                        <form className="spoti-form" onSubmit={saveCancion}>
-                            <input className="spoti-input" placeholder="Nombre..." value={nombreCancion} onChange={e => setNombreCancion(e.target.value)} required />
-                            <input className="spoti-input" placeholder="Artista..." value={artista} onChange={e => setArtista(e.target.value)} required />
-                            <input className="spoti-input" placeholder="Álbum..." value={album} onChange={e => setAlbum(e.target.value)} required />
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
-                                <label style={{fontSize: '0.8rem', color: '#b3b3b3'}}>Audio (mp3)</label>
-                                <input id="audioInput" className="spoti-input" type="file" accept="audio/*" required={!editCancionId} />
-                            </div>
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
-                                <label style={{fontSize: '0.8rem', color: '#b3b3b3'}}>Portada (imagen)</label>
-                                <input id="portadaInput" className="spoti-input" type="file" accept="image/*" required={!editCancionId} />
-                            </div>
-                            <select className="spoti-input" value={genero} onChange={e => setGenero(e.target.value)} required>
-                                <option value="">Género...</option>
-                                {generos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-                            </select>
-                            <button className="btn-spoti">{editCancionId ? 'Guardar' : 'Añadir'}</button>
-                            {editCancionId && <button type="button" className="btn-delete" onClick={() => setEditCancionId(null)}>X</button>}
-                        </form>
-                    )}
-                    <div className="song-list">
-                        {canciones.map(c => (
-                            <div key={c.id} className="song-card">
-                                <div className="song-info"><h3>{c.nombre}</h3><p>{c.artista} - {c.album}</p></div>
-                                {user.admin && (
-                                    <div className="actions">
-                                        <button className="btn-edit" onClick={() => {setEditCancionId(c.id); setNombreCancion(c.nombre); setArtista(c.artista); setAlbum(c.album); setGenero(c.genero);}}>Editar</button>
-                                        <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
-                                    </div>
+                        <div style={{ marginBottom: '40px', padding: '20px', backgroundColor: '#282828', borderRadius: '8px' }}>
+                            {/* Gestión de Géneros */}
+                            <h2 style={{ color: '#1DB954', marginBottom: '15px', fontSize: '1.2rem' }}>Añadir Nuevo Género</h2>
+                            <form className="spoti-form" onSubmit={saveGenero} style={{ marginBottom: '30px', display: 'flex', gap: '10px' }}>
+                                <input
+                                    className="spoti-input"
+                                    placeholder="Nombre del género (Ej: Rock, Techno...)"
+                                    value={nombreGenero}
+                                    onChange={e => setNombreGenero(e.target.value)}
+                                    required
+                                />
+                                <button className="btn-spoti" style={{ width: 'auto', whiteSpace: 'nowrap' }}>Añadir Género</button>
+                            </form>
+
+                            <hr style={{ borderColor: '#333', marginBottom: '30px' }} />
+
+                            {/* Gestión de Canciones */}
+                            <h2 style={{ color: '#1DB954', marginBottom: '15px', fontSize: '1.2rem' }}>
+                                {editCancionId ? 'Editar Canción' : 'Añadir Nueva Canción'}
+                            </h2>
+                            <form className="spoti-form" onSubmit={saveCancion}>
+                                <input className="spoti-input" placeholder="Nombre..." value={nombreCancion} onChange={e => setNombreCancion(e.target.value)} required />
+                                <input className="spoti-input" placeholder="Artista..." value={artista} onChange={e => setArtista(e.target.value)} required />
+                                <input className="spoti-input" placeholder="Álbum..." value={album} onChange={e => setAlbum(e.target.value)} required />
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Archivo Audio (mp3)</label>
+                                    <input id="audioInput" className="spoti-input" type="file" accept="audio/*" required={!editCancionId} />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Imagen de Portada</label>
+                                    <input id="portadaInput" className="spoti-input" type="file" accept="image/*" required={!editCancionId} />
+                                </div>
+
+                                <select className="spoti-input" value={genero} onChange={e => setGenero(e.target.value)} required>
+                                    <option value="">Selecciona un Género...</option>
+                                    {generos.map(g => (
+                                        <option key={g.id} value={g.id}>{g.nombre}</option>
+                                    ))}
+                                </select>
+
+                                <button className="btn-spoti">
+                                    {editCancionId ? 'Guardar Cambios' : 'Subir Canción'}
+                                </button>
+
+                                {editCancionId && (
+                                    <button type="button" className="btn-delete" onClick={() => {
+                                        setEditCancionId(null);
+                                        setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
+                                    }}>Cancelar Edición</button>
                                 )}
-                            </div>
-                        ))}
+                            </form>
+                        </div>
+                    )}
+
+                    {/* LISTADO DE CANCIONES */}
+                    <div className="song-list">
+                        {canciones.length === 0 ? (
+                            <p style={{ textAlign: 'center', color: '#b3b3b3' }}>No hay canciones disponibles.</p>
+                        ) : (
+                            canciones.map(c => (
+                                <div key={c.id} className="song-card">
+                                    <div className="song-info">
+                                        <h3>{c.nombre}</h3>
+                                        <p>{c.artista} — {c.album}</p>
+                                    </div>
+                                    {user.admin && (
+                                        <div className="actions">
+                                            <button className="btn-edit" onClick={() => {
+                                                setEditCancionId(c.id);
+                                                setNombreCancion(c.nombre);
+                                                setArtista(c.artista);
+                                                setAlbum(c.album);
+                                                setGenero(c.genero);
+                                            }}>Editar</button>
+                                            <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
@@ -288,7 +356,7 @@ function App() {
                     <div className="song-list">
                         {usuarios.map(u => (
                             <div key={u.id} className="song-card">
-                                <div className="song-info"><h3>{u.nombre} </h3><p>{u.correo}</p></div>
+                                <div className="song-info"><h3>{u.username} </h3><p>{u.correo}</p></div>
                                 <div className="actions">
                                     <button className="btn-edit" onClick={() => {setEditUserId(u.id); setUsername(u.username); setCorreo(u.correo); setPass(u.pass); setUrlImagen(u.urlImagen);}}>Editar</button>
                                     {u.id !== 1 && <button className="btn-delete" onClick={() => deleteUsuario(u.id)}>Borrar</button>}
