@@ -78,36 +78,30 @@ function App() {
     // Gestión de login y registro
     const handleAuth = (e) => {
         e.preventDefault();
-        if(isRegister){
-            fetch(`${baseUrl}/register`, {
+        if (isRegister) {
+            fetch(`${baseUrl}/register?t=${Date.now()}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true'},
                 body: JSON.stringify({
-                    username: authUsername,
-                    correo: authCorreo,
-                    pass: authPass,
-                    admin: false,
-                    premium: false
+                    username: authUsername, correo: authCorreo, pass: authPass
                 })
-            }).then(() => {
-                alert("Cuenta creada");
-                setIsRegister(false);
-                setAuthPass('');
-                setAuthCorreo('');
-                setAuthUsername('');
+            }).then(r => {
+                if (r.ok) {
+                    alert("¡Cuenta creada! Ya puedes entrar.");
+                    setIsRegister(false);
+                } else alert("Error al registrar el usuario.");
             });
-        }else {
+
+        } else {
             fetch(`${baseUrl}/login`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true'},
                 body: JSON.stringify({correo: authCorreo, pass: authPass})
-            })
-            .then(r => r.json())
-            .then(data =>{
-                if(data.error){
-                    alert(data.error)
-                }else {
-                    setUser(data);
+            }).then(async r => {
+                if (r.ok) {
+                    setUser(await r.json());
+                } else {
+                    alert("Correo o contraseña incorrectos.");
                 }
             });
         }
@@ -171,15 +165,15 @@ function App() {
     // CRUD Usuarios (admin)
     const saveUsuario = (e) => {
         e.preventDefault();
-        const method = editUserId ? 'PUT' : 'POST';
-        const url = editUserId ? `${baseUrl}/usuario/${editUserId}` : `${baseUrl}/usaurio`;
+        if(!editUserId) return;
 
-        fetch(url, {
-            method: method, headers: getHeaders(),
+        fetch(`${baseUrl}/usuarios/${editUserId}`, {
+            method: 'PUT', headers: getHeaders(),
             body: JSON.stringify({
-                username: username, correo, pass, urlImagen, admin: 0, premium: 0, token: ''
+                username: username, correo: correo, pass: pass, urlImagen: urlImagen, admin: 0, premium: 0, token: ''
             })
         }).then(() => {
+            setEditCancionId(null);
             setUsername(''); setCorreo(''); setPass(''); setUrlImagen('');
             loadData();
         });
@@ -345,21 +339,42 @@ function App() {
             {/* USUARIOS */}
             {vista === 'usuarios' && user.admin && (
                 <div>
-                    <form className="spoti-form" onSubmit={saveUsuario}>
-                        <input className="spoti-input" placeholder="Nombre de usuario" value={username} onChange={e => setUsername(e.target.value)} required />
-                        <input className="spoti-input" placeholder="Correo" value={correo} onChange={e => setCorreo(e.target.value)} required />
-                        <input className="spoti-input" type="password" placeholder="Pass" value={pass} onChange={e => setPass(e.target.value)} required />
-                        <input className="spoti-input" placeholder="URL Imagen" value={urlImagen} onChange={e => setUrlImagen(e.target.value)} />
-                        <button className="btn-spoti">{editUserId ? 'Guardar' : 'Crear'}</button>
-                        {editUserId && <button type="button" className="btn-delete" onClick={() => {setEditUserId(null); setUsername(''); setCorreo(''); setPass(''); setUrlImagen('');}}>X</button>}
-                    </form>
+                    {/* El formulario solo se muestra si estamos editando a alguien */}
+                    {editUserId ? (
+                        <div style={{ backgroundColor: '#282828', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+                            <h2 style={{ color: '#1DB954', fontSize: '1.2rem', marginBottom: '15px' }}>Editar Perfil de Usuario</h2>
+                            <form className="spoti-form" onSubmit={saveUsuario}>
+                                <input className="spoti-input" placeholder="Nombre de usuario" value={username} onChange={e => setUsername(e.target.value)} required />
+                                <input className="spoti-input" placeholder="Correo" value={correo} onChange={e => setCorreo(e.target.value)} required />
+                                <input className="spoti-input" type="password" placeholder="Nueva contraseña (opcional)" value={pass} onChange={e => setPass(e.target.value)} />
+                                <input className="spoti-input" placeholder="URL Imagen de perfil" value={urlImagen} onChange={e => setUrlImagen(e.target.value)} />
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button className="btn-spoti">Guardar Cambios</button>
+                                    <button type="button" className="btn-delete" onClick={() => { setEditUserId(null); setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); }}>Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    ) : (
+                        <p style={{ color: '#b3b3b3', marginBottom: '20px', textAlign: 'center' }}>Selecciona un usuario de la lista para editar sus datos.</p>
+                    )}
+
                     <div className="song-list">
                         {usuarios.map(u => (
                             <div key={u.id} className="song-card">
-                                <div className="song-info"><h3>{u.username} </h3><p>{u.correo}</p></div>
+                                <div className="song-info">
+                                    <h3>{u.username}</h3>
+                                    <p>{u.correo}</p>
+                                </div>
                                 <div className="actions">
-                                    <button className="btn-edit" onClick={() => {setEditUserId(u.id); setUsername(u.username); setCorreo(u.correo); setPass(u.pass); setUrlImagen(u.urlImagen);}}>Editar</button>
-                                    {u.id !== 1 && <button className="btn-delete" onClick={() => deleteUsuario(u.id)}>Borrar</button>}
+                                    <button className="btn-edit" onClick={() => {
+                                        setEditUserId(u.id);
+                                        setUsername(u.username);
+                                        setCorreo(u.correo);
+                                        setPass(''); // No cargamos la pass por seguridad
+                                        setUrlImagen(u.urlImagen || '');
+                                    }}>Editar</button>
+                                    {/* Evitamos que el admin se borre a sí mismo (suponiendo que es el ID 1) */}
+                                    {u.id !== user.id && <button className="btn-delete" onClick={() => deleteUsuario(u.id)}>Borrar</button>}
                                 </div>
                             </div>
                         ))}
