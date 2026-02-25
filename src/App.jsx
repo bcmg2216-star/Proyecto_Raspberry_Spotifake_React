@@ -34,6 +34,14 @@ function App() {
     const [editUserId, setEditUserId] = useState(null);
     const [premium, setPremium] = useState(0);
 
+    // Estados para gestionar las listas de un usuario (admin)
+    const [adminSelectedUserId, setAdminSelectedUserId] = useState(null);
+    const [adminUserListas, setAdminUserListas] = useState([]);
+    const [adminEditListaId, setAdminEditListaId] = useState(null);
+    const [adminEditListaNombre, setAdminEditListaNombre] = useState('');
+    const [adminSelectedListaId, setAdminSelectedListaId] = useState(null);
+    const [adminCancionesLista, setAdminCancionesLista] = useState([]);
+
     // Estados de formulario listas
     const [nombreLista, setNombreLista] = useState('');
 
@@ -239,6 +247,40 @@ function App() {
     };
 
     const deleteLista = (id) => fetch(`${baseUrl}/listas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    // Gestionar listas de usuarios
+    const verListasDeUsuario = (idUsuario) => {
+        setAdminSelectedUserId(idUsuario);
+        setAdminSelectedListaId(null);
+        fetch(`${baseUrl}/usuarios/${idUsuario}/listas`, { headers: getHeaders() })
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data)) setAdminUserListas(data); });
+    };
+
+    const adminDeleteLista = (idLista) => {
+        fetch(`${baseUrl}/listas/${idLista}`, {method: 'DELETE', headers: getHeaders()})
+            .then(() => verListasDeUsuario(adminSelectedUserId));
+    };
+
+    const adminSaveLista = (e) => {
+        e.preventDefault();
+        fetch(`${baseUrl}/listas/${adminEditListaId}`, {
+            method: 'PUT', headers: getHeaders(),
+            body: JSON.stringify({ nombre: adminEditListaNombre, idUsuario: adminSelectedUserId })
+        }).then(() => {
+            setAdminEditListaId(null);
+            setAdminEditListaNombre('');
+            verListasDeUsuario(adminSelectedUserId);
+        });
+    };
+
+    const verCancionesDeLista = (idLista) => {
+        setAdminSelectedListaId(idLista);
+        fetch(`${baseUrl}/listas/${idLista}/canciones`, { headers: getHeaders() })
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data)) setAdminCancionesLista(data); })
+            .catch(() => setAdminCancionesLista([]));
+    };
 
     // Pantalla login/registro (si no hay usuario)
     if(!user){
@@ -453,6 +495,7 @@ function App() {
             {/* USUARIOS */}
             {vista === 'usuarios' && user.admin && (
                 <div>
+                    {/* 1. FORMULARIO DE EDICIÓN DE USUARIO */}
                     {editUserId ? (
                         <div style={{ backgroundColor: '#282828', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
                             <h2 style={{ color: '#1DB954', fontSize: '1.2rem', marginBottom: '15px' }}>Editar Perfil de Usuario</h2>
@@ -480,9 +523,55 @@ function App() {
                             </form>
                         </div>
                     ) : (
-                        <p style={{ color: '#b3b3b3', marginBottom: '20px', textAlign: 'center' }}>Selecciona un usuario de la lista para editar sus datos.</p>
+                        <p style={{ color: '#b3b3b3', marginBottom: '20px', textAlign: 'center' }}>Selecciona un usuario de la lista para editar sus datos o ver sus listas.</p>
                     )}
 
+                    {/* 2. PANEL DE GESTIÓN DE LISTAS DEL USUARIO SELECCIONADO */}
+                    {adminSelectedUserId && (
+                        <div style={{ backgroundColor: '#181818', padding: '20px', borderRadius: '8px', marginBottom: '30px', border: '1px solid #1DB954' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h2 style={{ color: '#1DB954', fontSize: '1.2rem', margin: 0 }}>Listas del Usuario</h2>
+                                <button className="btn-delete" onClick={() => { setAdminSelectedUserId(null); setAdminSelectedListaId(null); }}>Cerrar Panel</button>
+                            </div>
+
+                            {/* Formulario para editar el nombre de la lista */}
+                            {adminEditListaId && (
+                                <form className="spoti-form" onSubmit={adminSaveLista} style={{ marginBottom: '20px' }}>
+                                    <input className="spoti-input" value={adminEditListaNombre} onChange={e => setAdminEditListaNombre(e.target.value)} required />
+                                    <button className="btn-spoti">Guardar Nombre</button>
+                                    <button type="button" className="btn-delete" onClick={() => setAdminEditListaId(null)}>Cancelar</button>
+                                </form>
+                            )}
+
+                            {/* Tarjetas de las listas de este usuario */}
+                            <div className="song-list" style={{ marginBottom: '20px' }}>
+                                {adminUserListas.length === 0 ? <p style={{ color: '#b3b3b3' }}>No tiene listas.</p> : adminUserListas.map(l => (
+                                    <div key={l.id} className="song-card" style={{ backgroundColor: '#282828' }}>
+                                        <div className="song-info"><h3>{l.nombre}</h3></div>
+                                        <div className="actions">
+                                            <button className="btn-spoti" style={{ padding: '5px 10px', fontSize: '0.9rem' }} onClick={() => verCancionesDeLista(l.id)}>Ver Canciones</button>
+                                            <button className="btn-edit" onClick={() => { setAdminEditListaId(l.id); setAdminEditListaNombre(l.nombre); }}>Editar</button>
+                                            <button className="btn-delete" onClick={() => adminDeleteLista(l.id)}>Borrar</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* CANCIONES DE LA LISTA SELECCIONADA */}
+                            {adminSelectedListaId && (
+                                <div style={{ backgroundColor: '#121212', padding: '15px', borderRadius: '8px' }}>
+                                    <h3 style={{ color: 'white', marginBottom: '10px' }}>Canciones en la lista:</h3>
+                                    {adminCancionesLista.length === 0 ? <p style={{ color: '#b3b3b3' }}>La lista está vacía.</p> : adminCancionesLista.map(c => (
+                                        <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid #333', color: '#b3b3b3' }}>
+                                            🎵 {c.nombre}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 3. LISTADO DE USUARIOS */}
                     <div className="song-list">
                         {usuarios.map(u => {
                             const fotoPerfil = u.urlImagen
@@ -501,6 +590,10 @@ function App() {
                                     </div>
 
                                     <div className="actions">
+                                        <button className="btn-spoti" style={{ padding: '5px 10px', fontSize: '0.9rem' }} onClick={() => verListasDeUsuario(u.id)}>
+                                            Ver Listas
+                                        </button>
+
                                         <button className="btn-edit" onClick={() => {
                                             setEditUserId(u.id);
                                             setUsername(u.username);
