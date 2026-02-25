@@ -79,19 +79,21 @@ function App() {
             .then(data => { if (Array.isArray(data)) setArtistas(data); })
             .catch(err => console.error("Error al cargar artistas:", err));
 
-        fetch(`${baseUrl}/usuarios/${user.id}/listas`, { headers: headersConToken })
-            .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setListas(data); });
-        if (user.admin) {
-            fetch(`${baseUrl}/usuarios`, { headers: headersConToken })
-                .then(r => r.json())
-                .then(data => { if (Array.isArray(data)) setUsuarios(data); });
-        }
-
+        // Añadido para que el formulario de canciones pueda mostrar los álbumes
         fetch(`${baseUrl}/albums`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setAlbums(data); })
             .catch(err => console.error("Error al cargar álbumes:", err));
+
+        fetch(`${baseUrl}/usuarios/${user.id}/listas`, { headers: headersConToken })
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data)) setListas(data); });
+
+        if (user.admin === true || user.admin === 1) {
+            fetch(`${baseUrl}/usuarios`, { headers: headersConToken })
+                .then(r => r.json())
+                .then(data => { if (Array.isArray(data)) setUsuarios(data); });
+        }
     }
 
     // Cada vez que el usuario cambia (hace login), cargamos sus datos
@@ -190,29 +192,34 @@ function App() {
     const saveArtista = (e) => {
         e.preventDefault();
         fetch(`${baseUrl}/artistas`, {
-            method: 'POST', headers: getHeaders(),
-            body: JSON.stringify({id: 0, nombre: nombreArtistaNuevo, fotourl: ""}) // Adaptado a la BD
-        }).then(() =>{
-            setNombreArtistaNuevo('');
-            loadData();
-        }).catch(err => console.log(err));
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ id: 0, nombre: nombreArtistaNuevo, fotourl: "" })
+        })
+            .then(res => {
+                if (res.ok) {
+                    setNombreArtistaNuevo('');
+                    loadData();
+                    alert("¡Artista añadido correctamente!");
+                } else {
+                    alert("Sigue dando Error 500. ¡Toca mirar la consola de Kotlin!");
+                }
+            })
+            .catch(err => console.log(err));
     };
 
     // CRUD Álbumes (admin)
     const saveAlbum = (e) => {
         e.preventDefault();
-        fetch(`${baseUrl}/albums`, {
+        if (!artistaAlbumNuevo) { alert("Selecciona un artista primero"); return; }
+
+        fetch(`${baseUrl}/artistas/${artistaAlbumNuevo}/albums`, {
             method: 'POST', headers: getHeaders(),
-            body: JSON.stringify({
-                id: 0,
-                nombre: nombreAlbumNuevo,
-                artista: parseInt(artistaAlbumNuevo),
-                portadaurl: ""
-            }) // Adaptado a la BD
+            body: JSON.stringify({ nombre: nombreAlbumNuevo, portadaUrl: "" })
         }).then(() =>{
             setNombreAlbumNuevo('');
             setArtistaAlbumNuevo('');
-            loadData();
+            alert("Álbum creado correctamente.");
         }).catch(err => console.log(err));
     };
 
@@ -309,7 +316,7 @@ function App() {
                 <div style={{display: 'flex', gap: '10px'}}>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('canciones')}>Canciones</button>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('listas')}>Mis Listas</button>
-                    {user.admin && (
+                    {(user.admin === true || user.admin === 1) && (
                         <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('usuarios')}>Usuarios</button>
                     )}
                     <button className="btn-delete" onClick={() => { setUser(null); setVista('canciones'); }}>Cerrar Sesión</button>
@@ -319,9 +326,9 @@ function App() {
             {/* Vista de canciones*/}
             {vista === 'canciones' && (
                 <div>
-                    {user.admin && (
+                    {(user.admin === true || user.admin === 1) && (
                         <div style={{ marginBottom: '40px', padding: '20px', backgroundColor: '#282828', borderRadius: '8px' }}>
-                            {/* Gestión de Géneros, Artistas y Álbumes JUNTOS */}
+                            {/* Gestión de Géneros, Artistas y Albumes */}
                             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '30px' }}>
 
                                 {/* 1. Formulario para Géneros */}
@@ -342,7 +349,7 @@ function App() {
                                     </form>
                                 </div>
 
-                                {/* 3. Formulario para Álbumes */}
+                                {/* 3. Formulario para Albumes */}
                                 <div style={{ flex: 1, minWidth: '300px' }}>
                                     <h2 style={{ color: '#1DB954', marginBottom: '15px', fontSize: '1.2rem' }}>Añadir Álbum</h2>
                                     <form className="spoti-form" onSubmit={saveAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: 0 }}>
@@ -369,7 +376,7 @@ function App() {
                             <form className="spoti-form" onSubmit={saveCancion}>
                                 <input className="spoti-input" placeholder="Nombre..." value={nombreCancion} onChange={e => setNombreCancion(e.target.value)} required />
 
-                                {/* DESPLEGABLE DE ARTISTA */}
+                                {/* Artista y Álbum adaptados a la base de datos (desplegables) */}
                                 <select className="spoti-input" value={artista} onChange={e => setArtista(e.target.value)} required>
                                     <option value="">Selecciona un Artista...</option>
                                     {artistas.map(a => (
@@ -377,7 +384,6 @@ function App() {
                                     ))}
                                 </select>
 
-                                {/* SELECT DE ÁLBUMES */}
                                 <select className="spoti-input" value={album} onChange={e => setAlbum(e.target.value)} required>
                                     <option value="">Selecciona un Álbum...</option>
                                     {albums.map(al => (
@@ -430,7 +436,7 @@ function App() {
                                 const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
                                 const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
 
-                                const urlDelAudio = c.audiourl ? `https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev${c.audiourl}` : null;
+                                const urlDelAudio = c.urlAudio ? `https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev${c.urlAudio}` : null;
 
                                 return (
                                     <div key={c.id} className="song-card">
@@ -454,7 +460,7 @@ function App() {
                                             </p>
                                         )}
 
-                                        {user.admin && (
+                                        {(user.admin === true || user.admin === 1) && (
                                             <div className="actions">
                                                 <button className="btn-edit" onClick={() => {
                                                     setEditCancionId(c.id);
@@ -493,7 +499,7 @@ function App() {
             )}
 
             {/* USUARIOS */}
-            {vista === 'usuarios' && user.admin && (
+            {vista === 'usuarios' && (user.admin === true || user.admin === 1) && (
                 <div>
                     {/* 1. FORMULARIO DE EDICIÓN DE USUARIO */}
                     {editUserId ? (
