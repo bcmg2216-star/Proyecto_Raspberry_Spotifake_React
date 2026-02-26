@@ -139,9 +139,15 @@ function App() {
         }
     };
 
-    // Para cualquier operación CRUD, creamos las cabeceras con el token
+    // Cabeceras para JSON normal (Usuarios, Listas, Géneros)
     const getHeaders = () => ({
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user.token}`,
+        'ngrok-skip-browser-warning': 'true'
+    });
+
+    // Cabeceras para MULTIPART (Canciones, Artistas, Álbumes). IMPORTANTE: No lleva Content-Type
+    const getMultipartHeaders = () => ({
         'Authorization': `Bearer ${user.token}`,
         'ngrok-skip-browser-warning': 'true'
     });
@@ -154,49 +160,38 @@ function App() {
 
         const formData = new FormData();
         formData.append('nombre', nombreCancion);
-        formData.append('artista', artista);
-        formData.append('album', album);
+        formData.append('artistaId', artista);
+        formData.append('albumId', album);
         formData.append('genero', genero);
         formData.append('likes', 0);
 
-        // Coge los archivos directamente de los inputs
         const inputAudio = document.getElementById('audioInput');
         const inputPortada = document.getElementById('portadaInput');
         if (inputAudio.files[0]) formData.append('audio', inputAudio.files[0]);
         if (inputPortada.files[0]) formData.append('portada', inputPortada.files[0]);
 
-        fetch(url, {
-            method: method,
-            headers: { 'Authorization': `Bearer ${user.token}`,
-                'ngrok-skip-browser-warning': 'true'
-            },
-            body: formData
-        }).then(() =>{
-            setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
-            inputAudio.value = ''; inputPortada.value = ''; // Limpiamos los inputs
-            setEditCancionId(null);
-            loadData();
-        });
-
+        // SE USA MULTIPART HEADERS AQUI
+        fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
+            .then(() =>{
+                setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
+                inputAudio.value = ''; inputPortada.value = '';
+                setEditCancionId(null); loadData();
+            });
     };
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
 
-    // CRUD generos (admin)
+    //  CRUD generos (admin)
     const saveGenero = (e) => {
         e.preventDefault();
         const method = editGeneroId ? 'PUT' : 'POST';
         const url = editGeneroId ? `${baseUrl}/generos/${editGeneroId}` : `${baseUrl}/generos`;
 
-        fetch(url, {
-            method: method, headers: getHeaders(),
-            body: JSON.stringify({id: editGeneroId || 0, nombre: nombreGenero})
-        }).then(() =>{
-            setNombreGenero('');
-            setEditGeneroId(null);
-            loadData();
-        }).catch(err => console.log(err));
+        fetch(url, { method: method, headers: getHeaders(), body: JSON.stringify({ nombre: nombreGenero }) })
+            .then(() =>{ setNombreGenero(''); setEditGeneroId(null); loadData(); })
+            .catch(err => console.log(err));
     };
+    // No implementado todavia
     const deleteGenero = (id) => fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
 
@@ -206,19 +201,15 @@ function App() {
         const method = editArtistaId ? 'PUT' : 'POST';
         const url = editArtistaId ? `${baseUrl}/artistas/${editArtistaId}` : `${baseUrl}/artistas`;
 
-        fetch(url, {
-            method: method, headers: getHeaders(),
-            body: JSON.stringify({id: editArtistaId || 0, nombre: nombreArtistaNuevo, fotoUrl: ""})
-        }).then(res => {
-            if(res.ok) {
-                setNombreArtistaNuevo('');
-                setEditArtistaId(null);
-                loadData();
-                alert("Artista guardado correctamente");
-            } else {
-                alert("Error al guardar artista.");
-            }
-        }).catch(err => console.log(err));
+        const formData = new FormData();
+        formData.append('nombre', nombreArtistaNuevo);
+
+        fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
+            .then(res => {
+                if(res.ok) {
+                    setNombreArtistaNuevo(''); setEditArtistaId(null); loadData(); alert("Artista guardado correctamente");
+                } else { alert("Error al guardar artista."); }
+            }).catch(err => console.log(err));
     };
     const deleteArtista = (id) => fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
@@ -226,21 +217,23 @@ function App() {
     // CRUD albums (admin)
     const saveAlbum = (e) => {
         e.preventDefault();
-        if (!artistaAlbumNuevo) { alert("Selecciona un artista primero"); return; }
+        if (!artistaAlbumNuevo && !editAlbumId) { alert("Selecciona un artista primero"); return; }
 
         const method = editAlbumId ? 'PUT' : 'POST';
         const url = editAlbumId ? `${baseUrl}/albums/${editAlbumId}` : `${baseUrl}/artistas/${artistaAlbumNuevo}/albums`;
 
-        fetch(url, {
-            method: method, headers: getHeaders(),
-            body: JSON.stringify({ nombre: nombreAlbumNuevo, portadaUrl: "" })
-        }).then(() =>{
-            setNombreAlbumNuevo('');
-            setArtistaAlbumNuevo('');
-            setEditAlbumId(null);
-            alert("Álbum guardado correctamente.");
-            loadData();
-        }).catch(err => console.log(err));
+        const formData = new FormData();
+        formData.append('nombre', nombreAlbumNuevo);
+        if (editAlbumId && artistaAlbumNuevo) {
+            formData.append('artistaId', artistaAlbumNuevo);
+        }
+
+        fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
+            .then(res => {
+                if (res.ok) {
+                    setNombreAlbumNuevo(''); setArtistaAlbumNuevo(''); setEditAlbumId(null); loadData(); alert("Álbum guardado correctamente.");
+                } else { alert("Error al guardar álbum."); }
+            }).catch(err => console.log(err));
     };
     const deleteAlbum = (id) => fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
@@ -485,7 +478,6 @@ function App() {
                             <div key={g.id} className="song-card">
                                 <div className="song-info"><h3>{g.nombre}</h3></div>
                                 <div className="actions">
-                                    <button className="btn-edit" onClick={() => { setEditGeneroId(g.id); setNombreGenero(g.nombre); }}>Editar</button>
                                     <button className="btn-delete" onClick={() => deleteGenero(g.id)}>Borrar</button>
                                 </div>
                             </div>
