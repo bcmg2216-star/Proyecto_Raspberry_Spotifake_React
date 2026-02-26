@@ -1,19 +1,33 @@
-# React + Vite
+# Spotifake - Panel Web Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este es el frontend (cliente web) del proyecto **Spotifake**, una aplicación de música al estilo Spotify. Está construido con **React** y permite tanto a usuarios normales como a administradores interactuar con la base de datos de música.
 
-Currently, two official plugins are available:
+## Características Principales
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+La aplicación tiene dos niveles de acceso dependiendo del rol del usuario:
 
-## React Compiler
+### Para Usuarios Normales:
+* **Autenticación:** Registro e Inicio de sesión seguro con JWT.
+* **Catálogo de Música:** Ver la lista de canciones disponibles y reproducirlas.
+* **Mis Listas:** Crear listas de reproducción personalizadas y borrarlas.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Para Administradores:
+Los administradores tienen acceso a pestañas exclusivas para gestionar todo el contenido de la plataforma:
+* **Gestión de Canciones:** Subir nuevas canciones (archivos de audio MP3 y portadas de imagen), editarlas y borrarlas.
+* **Gestión de Entidades:** Crear, editar y borrar **Géneros**, **Artistas** y **Álbumes**. 
+* **Gestión de Usuarios:** Ver todos los usuarios registrados, editar sus perfiles, otorgarles el estado de **Premium**, ver sus listas de reproducción y eliminarlos si es necesario.
 
-## Expanding the ESLint configuration
+## Tecnologías Utilizadas
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-# Proyecto_Raspberry_Spotifake_React
-# Proyecto_Raspberry_Spotifake_React
-# Proyecto_Raspberry_Spotifake_React
+* **React (Vite/Create React App):** Framework principal para la interfaz de usuario (`App.jsx`).
+* **CSS Puro:** Estilos personalizados (`App.css`).
+* **Fetch API:** Para las peticiones HTTP al servidor backend. Soporta tanto peticiones `JSON` estándar como `Multipart/FormData` para la subida de archivos (canciones y portadas).
+
+## Cómo instalar y ejecutar el proyecto
+
+Sigue estos sencillos pasos para levantar la web en tu ordenador:
+
+1. **Abre una terminal** en la carpeta del proyecto.
+2. **Instala las dependencias** de React ejecutando el siguiente comando:
+   ```bash
+   npm install
