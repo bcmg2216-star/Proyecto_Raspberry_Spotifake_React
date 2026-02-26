@@ -247,18 +247,24 @@ function App() {
             username: username,
             correo: correo,
             urlImagen: urlImagen,
-            premium: premium === 1 || premium === true
+            premium: premium === 1 || premium === true ? 1 : 0
         };
         if (pass) bodyData.pass = pass;
 
         fetch(`${baseUrl}/usuarios/${editUserId}`, {
-            method: 'PUT', headers: getHeaders(),
+            method: 'PUT',
+            headers: getHeaders(),
             body: JSON.stringify(bodyData)
-        }).then(() => {
-            setEditUserId(null);
-            setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0);
-            loadData();
-        });
+        }).then(res => {
+            if (res.ok) {
+                setEditUserId(null);
+                setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0);
+                loadData();
+                alert("Usuario actualizado con éxito.");
+            } else {
+                alert("Error al actualizar. Si sigue fallando.");
+            }
+        }).catch(err => console.log(err));
     };
     const deleteUsuario = (id) => fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
@@ -418,8 +424,7 @@ function App() {
                                 const nombreArtistaStr = artistaObj ? artistaObj.nombre : c.artista;
                                 const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
                                 const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
-                                const urlDelAudio = c.urlAudio ? `https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev${c.urlAudio}` : null;
-
+                                const urlDelAudio = c.urlAudio ? `https://subpatronal-heathiest-kash.ngrok-free.dev/api/${c.urlAudio}` : null;
                                 return (
                                     <div key={c.id} className="song-card">
                                         <div className="song-info" style={{ minWidth: '200px' }}>
@@ -649,7 +654,7 @@ function App() {
                     <div className="song-list">
                         {usuarios.map(u => {
                             const fotoPerfil = u.urlImagen
-                                ? `https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev${u.urlImagen}`
+                                ? `https://subpatronal-heathiest-kash.ngrok-free.dev/api/${u.urlImagen}`
                                 : 'https://ui-avatars.com/api/?name=' + u.username + '&background=282828&color=1DB954';
 
                             return (
