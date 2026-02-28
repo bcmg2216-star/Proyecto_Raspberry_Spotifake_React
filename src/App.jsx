@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import logo from './assets/logo.png'
 
 function App() {
     const [user, setUser] = useState(null) // guardamos los datos y el token
@@ -39,6 +40,7 @@ function App() {
     const [editUserId, setEditUserId] = useState(null);
     const [premium, setPremium] = useState(0);
     const [isAdmin, setIsAdmin] = useState(0);
+    const [searchCorreo, setSearchCorreo] = useState('');
 
     // Estados para gestionar las listas de un usuario (admin)
     const [adminSelectedUserId, setAdminSelectedUserId] = useState(null);
@@ -57,8 +59,7 @@ function App() {
     const [nombreAlbumNuevo, setNombreAlbumNuevo] = useState('');
     const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState('');
 
-    const baseUrl = "https://corsproxy.io/?https://subpatronal-heathiest-kash.ngrok-free.dev/api";
-    //const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
+    const baseUrl = "http://100.124.67.2:8001/api";
 
     const loadData = () => {
         if (!user) return;
@@ -301,6 +302,26 @@ function App() {
 
     const deleteUsuario = (id) => fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
+    // Buscar usuarios
+    const handleSearchUsuario = (e) => {
+        e.preventDefault();
+        if (!searchCorreo.trim()) {
+            loadData(); // Si está vacío, recargamos todos
+            return;
+        }
+        fetch(`${baseUrl}/usuarios/correo/${searchCorreo.trim()}`, { headers: getHeaders() })
+            .then(r => {
+                if (r.ok) return r.json();
+                throw new Error('No encontrado');
+            })
+            .then(data => {
+                setUsuarios([data]); // Lo metemos en un array para que tu listado funcione igual
+            })
+            .catch(() => {
+                setUsuarios([]); // Si da error , mostramos la lista vacía
+            });
+    };
+
     // CRUD Listas (admin)
     const saveLista = (e) => {
         e.preventDefault();
@@ -351,6 +372,7 @@ function App() {
     if(!user){
         return (
             <div className="main-container">
+                <img src={logo} style={{ width: '120px', marginBottom: '20px' }} alt="Logo" />
                 <h1 className="header-title">{isRegister ? 'Crear cuenta' : 'Iniciar Sesión'}</h1>
                 <form className="spoti-form" onSubmit={handleAuth}>
                     {isRegister && <input className="spoti-input" placeholder="Nombre de usuario" value={authUsername} onChange={e => setAuthUsername(e.target.value)} required />}
@@ -369,8 +391,12 @@ function App() {
     return (
         <div className="main-container">
             {/* Cabecera con saludo y botones de control */}
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px'}}>
-                <h1 className="header-title" style={{margin: 0}}>Hola, {user.username}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <img
+                    src={logo}
+                    alt="Spotifake Logo"
+                    style={{ width: '60px', height: '60px', objectFit: 'contain' }}
+                />
                 <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('canciones')}>Canciones</button>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('listas')}>Mis Listas</button>
@@ -456,12 +482,27 @@ function App() {
                                 const nombreArtistaStr = artistaObj ? artistaObj.nombre : c.artista;
                                 const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
                                 const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
-                                const urlDelAudio = c.urlAudio ? `https://subpatronal-heathiest-kash.ngrok-free.dev/api/${c.urlAudio}` : null;
+                                const urlDelAudio = c.urlAudio ? `${baseUrl}/${c.urlAudio}` : null;
+                                const urlDeLaPortada = c.urlportada || c.urlPortada
+                                    ? `${baseUrl}/${c.urlportada || c.urlPortada}`
+                                    : 'https://ui-avatars.com/api/?name=%F0%9F%8E%B5&background=282828&color=1DB954';
                                 return (
                                     <div key={c.id} className="song-card">
+                                        <img
+                                            src={urlDeLaPortada}
+                                            alt={`Portada de ${c.nombre}`}
+                                            style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
+                                        />
+
                                         <div className="song-info" style={{ minWidth: '200px' }}>
                                             <h3>{c.nombre}</h3>
                                             <p>{nombreArtistaStr} — {nombreAlbumStr}</p>
+                                        </div>
+
+                                        {/* CONTADOR DE LIKES */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold' }}>
+                                            <span>💚</span>
+                                            <span>{c.likes || 0}</span>
                                         </div>
 
                                         {/* REPRODUCTOR DE MÚSICA */}
@@ -567,7 +608,8 @@ function App() {
                     </div>
                     <div className="song-list">
                         {albums.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay álbumes creados.</p> : albums.map(al => {
-                            const artistaDelAlbum = artistas.find(a => a.id.toString() === (al.artista?.id || al.artistaId || al.artista)?.toString());                            return (
+                            const artistaDelAlbum = artistas.find(a => a.id.toString() === (al.artista?.id || al.artistaId || al.artista)?.toString());
+                            return (
                                 <div key={al.id} className="song-card">
                                     <div className="song-info">
                                         <h3>{al.nombre}</h3>
@@ -605,6 +647,20 @@ function App() {
             {/* VISTA: USUARIOS (ADMIN) */}
             {vista === 'usuarios' && (user.admin === true || user.admin == 1) && (
                 <div>
+                    {/* --- BUSCADOR DE USUARIOS --- */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <form onSubmit={handleSearchUsuario} style={{ display: 'flex', gap: '10px' }}>
+                            <input
+                                className="spoti-input"
+                                style={{ flex: 1 }}
+                                placeholder="Buscar usuario por correo exacto..."
+                                value={searchCorreo}
+                                onChange={e => setSearchCorreo(e.target.value)}
+                            />
+                            <button className="btn-spoti" type="submit">Buscar</button>
+                            <button className="btn-delete" type="button" onClick={() => { setSearchCorreo(''); loadData(); }}>Limpiar</button>
+                        </form>
+                    </div>
                     {/* 1. FORMULARIO DE EDICIÓN DE USUARIO */}
                     {editUserId ? (
                         <div style={{ backgroundColor: '#282828', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
@@ -704,16 +760,19 @@ function App() {
                     <div className="song-list">
                         {usuarios.map(u => {
                             const fotoPerfil = u.urlImagen
-                                ? `https://subpatronal-heathiest-kash.ngrok-free.dev/api/${u.urlImagen}`
+                                ? `${baseUrl}/${u.urlImagen}`
                                 : 'https://ui-avatars.com/api/?name=' + u.username + '&background=282828&color=1DB954';
-
                             return (
                                 <div key={u.id} className="song-card">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <img src={fotoPerfil} alt={`Perfil de ${u.username}`} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} />
                                         <div className="song-info">
-                                            {/* Si es premium, le ponemos una estrellita al lado del nombre */}
-                                            <h3>{u.username} {u.premium === 1 && <span style={{ color: '#1DB954', fontSize: '1rem' }}>⭐ Premium</span>}</h3>
+                                            {/* Si es premium o admin, le ponemos sus iconos */}
+                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, paddingBottom: '5px' }}>
+                                                {u.username}
+                                                {u.premium === 1 && <span style={{ color: '#1DB954', fontSize: '0.9rem' }}>⭐ Premium</span>}
+                                                {(u.admin === 1 || u.admin === true) && <span style={{ color: '#FFD700', fontSize: '0.9rem' }}>👑 Admin</span>}
+                                            </h3>
                                             <p>{u.correo}</p>
                                         </div>
                                     </div>
