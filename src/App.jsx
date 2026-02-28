@@ -38,6 +38,7 @@ function App() {
     const [urlImagen, setUrlImagen] = useState('');
     const [editUserId, setEditUserId] = useState(null);
     const [premium, setPremium] = useState(0);
+    const [isAdmin, setIsAdmin] = useState(0);
 
     // Estados para gestionar las listas de un usuario (admin)
     const [adminSelectedUserId, setAdminSelectedUserId] = useState(null);
@@ -155,7 +156,7 @@ function App() {
     // CRUD canciones
     const saveCancion = (e) => {
         e.preventDefault();
-        const method = editCancionId ? 'PUT' : 'POST';
+        const method = editCancionId ? 'PATCH' : 'POST';
         const url = editCancionId ? `${baseUrl}/canciones/${editCancionId}` : `${baseUrl}/canciones`;
 
         const formData = new FormData();
@@ -184,7 +185,7 @@ function App() {
     //  CRUD generos (admin)
     const saveGenero = (e) => {
         e.preventDefault();
-        const method = editGeneroId ? 'PUT' : 'POST';
+        const method = editGeneroId ? 'PATCH' : 'POST';
         const url = editGeneroId ? `${baseUrl}/generos/${editGeneroId}` : `${baseUrl}/generos`;
 
         fetch(url, { method: method, headers: getHeaders(), body: JSON.stringify({ nombre: nombreGenero }) })
@@ -198,7 +199,7 @@ function App() {
     // CRUD artistas (admin)
     const saveArtista = (e) => {
         e.preventDefault();
-        const method = editArtistaId ? 'PUT' : 'POST';
+        const method = editArtistaId ? 'PATCH' : 'POST';
         const url = editArtistaId ? `${baseUrl}/artistas/${editArtistaId}` : `${baseUrl}/artistas`;
 
         const formData = new FormData();
@@ -219,7 +220,7 @@ function App() {
         e.preventDefault();
         if (!artistaAlbumNuevo && !editAlbumId) { alert("Selecciona un artista primero"); return; }
 
-        const method = editAlbumId ? 'PUT' : 'POST';
+        const method = editAlbumId ? 'PATCH' : 'POST';
         const url = editAlbumId ? `${baseUrl}/albums/${editAlbumId}` : `${baseUrl}/artistas/${artistaAlbumNuevo}/albums`;
 
         const formData = new FormData();
@@ -243,31 +244,62 @@ function App() {
         e.preventDefault();
         if(!editUserId) return;
 
+        // 1. Preparamos los datos de texto (JSON normal)
         const bodyData = {
             username: username,
             correo: correo,
-            urlImagen: urlImagen,
-            premium: premium === 1 || premium === true ? 1 : 0
+            premium: premium === 1 || premium === true ? 1 : 0,
+            admin: isAdmin === 1 || isAdmin === true ? 1 : 0
         };
         if (pass) bodyData.pass = pass;
 
+        // 2. Enviamos primero los textos
         fetch(`${baseUrl}/usuarios/${editUserId}`, {
-            method: 'PUT',
-            headers: getHeaders(),
+            method: 'PATCH', headers: getHeaders(),
             body: JSON.stringify(bodyData)
         }).then(res => {
-            if (res.ok) {
-                setEditUserId(null);
-                setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0);
-                loadData();
-                alert("Usuario actualizado con éxito.");
+            if(res.ok) {
+                // 3. Si el texto se guardó bien, comprobamos si el admin seleccionó una foto
+                const inputFoto = document.getElementById('fotoPerfilInput');
+                if (inputFoto && inputFoto.files[0]) {
+
+                    // Preparamos la foto en formato Multipart
+                    const formData = new FormData();
+                    formData.append('imagen', inputFoto.files[0]);
+
+                    // Hacemos el POST secundario solo para la foto
+                    fetch(`${baseUrl}/usuarios/${editUserId}/perfil`, {
+                        method: 'POST',
+                        headers: getMultipartHeaders(),
+                        body: formData
+                    }).then(resFoto => {
+                        if (resFoto.ok) {
+                            cerrarYRecargarUsuario();
+                        } else {
+                            alert("Datos actualizados, pero la foto dio error.");
+                            cerrarYRecargarUsuario();
+                        }
+                    });
+                } else {
+                    // Si no había foto seleccionada, terminamos y recargamos directamente
+                    cerrarYRecargarUsuario();
+                }
             } else {
-                alert("Error al actualizar. Si sigue fallando.");
+                alert("Error al actualizar los datos de texto del usuario.");
             }
         }).catch(err => console.log(err));
     };
-    const deleteUsuario = (id) => fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
+    // Función auxiliar para limpiar el formulario rápido
+    const cerrarYRecargarUsuario = () => {
+        setEditUserId(null);
+        setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0);
+        const inputFoto = document.getElementById('fotoPerfilInput');
+        if (inputFoto) inputFoto.value = '';
+        loadData();
+    };
+
+    const deleteUsuario = (id) => fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
     // CRUD Listas (admin)
     const saveLista = (e) => {
@@ -298,7 +330,7 @@ function App() {
     const adminSaveLista = (e) => {
         e.preventDefault();
         fetch(`${baseUrl}/listas/${adminEditListaId}`, {
-            method: 'PUT', headers: getHeaders(),
+            method: 'PATCH', headers: getHeaders(),
             body: JSON.stringify({ nombre: adminEditListaNombre, idUsuario: adminSelectedUserId })
         }).then(() => {
             setAdminEditListaId(null);
@@ -535,8 +567,7 @@ function App() {
                     </div>
                     <div className="song-list">
                         {albums.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay álbumes creados.</p> : albums.map(al => {
-                            const artistaDelAlbum = artistas.find(a => a.id.toString() === al.artista?.toString());
-                            return (
+                            const artistaDelAlbum = artistas.find(a => a.id.toString() === (al.artista?.id || al.artistaId || al.artista)?.toString());                            return (
                                 <div key={al.id} className="song-card">
                                     <div className="song-info">
                                         <h3>{al.nombre}</h3>
@@ -582,7 +613,12 @@ function App() {
                                 <input className="spoti-input" placeholder="Nombre de usuario" value={username} onChange={e => setUsername(e.target.value)} required />
                                 <input className="spoti-input" placeholder="Correo" value={correo} onChange={e => setCorreo(e.target.value)} required />
                                 <input className="spoti-input" type="password" placeholder="Nueva contraseña (opcional)" value={pass} onChange={e => setPass(e.target.value)} />
-                                <input className="spoti-input" placeholder="URL Imagen de perfil" value={urlImagen} onChange={e => setUrlImagen(e.target.value)} />
+
+                                {/* BOTÓN PARA SUBIR LA FOTO */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px', marginBottom: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Subir Foto de Perfil (Opcional - JPG/PNG)</label>
+                                    <input id="fotoPerfilInput" className="spoti-input" type="file" accept="image/jpeg, image/png" />
+                                </div>
 
                                 {/* CASILLA PARA HACER PREMIUM */}
                                 <label style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem', cursor: 'pointer' }}>
@@ -595,14 +631,28 @@ function App() {
                                     Hacer a este usuario Premium ⭐
                                 </label>
 
+                                {/* CASILLA PARA HACER ADMIN */}
+                                <label style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isAdmin === 1 || isAdmin === true}
+                                        onChange={e => setIsAdmin(e.target.checked ? 1 : 0)}
+                                        style={{ transform: 'scale(1.5)' }}
+                                    />
+                                    Hacer a este usuario Admin 👑
+                                </label>
+
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                     <button className="btn-spoti">Guardar Cambios</button>
-                                    <button type="button" className="btn-delete" onClick={() => { setEditUserId(null); setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0); }}>Cancelar</button>
+                                    <button type="button" className="btn-delete" onClick={() => {
+                                        setEditUserId(null); setUsername(''); setCorreo(''); setPass(''); setPremium(0);
+                                        const f = document.getElementById('fotoPerfilInput'); if(f) f.value = '';
+                                    }}>Cancelar</button>
                                 </div>
                             </form>
                         </div>
                     ) : (
-                        <p style={{ color: '#b3b3b3', marginBottom: '20px', textAlign: 'center' }}>Selecciona un usuario de la lista para editar sus datos o ver sus listas.</p>
+                        <p style={{ color: '#b3b3b3', marginBottom: '20px', textAlign: 'center' }}>Lista para editar los datos o ver sus listas de los usuarios.</p>
                     )}
 
                     {/* 2. PANEL DE GESTIÓN DE LISTAS DEL USUARIO SELECCIONADO */}
@@ -680,6 +730,7 @@ function App() {
                                             setPass('');
                                             setUrlImagen(u.urlImagen || '');
                                             setPremium(u.premium || 0);
+                                            setIsAdmin(u.admin || 0);
                                         }}>Editar</button>
 
                                         {u.id !== user.id && <button className="btn-delete" onClick={() => deleteUsuario(u.id)}>Borrar</button>}
