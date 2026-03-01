@@ -59,7 +59,7 @@ function App() {
     const [nombreAlbumNuevo, setNombreAlbumNuevo] = useState('');
     const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState('');
 
-    const baseUrl = "http://100.124.67.2:8001/api";
+    const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
 
     const loadData = () => {
         if (!user) return;
@@ -148,7 +148,7 @@ function App() {
         'ngrok-skip-browser-warning': 'true'
     });
 
-    // Cabeceras para MULTIPART (Canciones, Artistas, Álbumes). IMPORTANTE: No lleva Content-Type
+    // Cabeceras para MULTIPART (Canciones, Artistas, Álbumes).
     const getMultipartHeaders = () => ({
         'Authorization': `Bearer ${user.token}`,
         'ngrok-skip-browser-warning': 'true'
@@ -168,16 +168,17 @@ function App() {
         formData.append('likes', 0);
 
         const inputAudio = document.getElementById('audioInput');
-        const inputPortada = document.getElementById('portadaInput');
         if (inputAudio.files[0]) formData.append('audio', inputAudio.files[0]);
-        if (inputPortada.files[0]) formData.append('portada', inputPortada.files[0]);
 
-        // SE USA MULTIPART HEADERS AQUI
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(() =>{
-                setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
-                inputAudio.value = ''; inputPortada.value = '';
-                setEditCancionId(null); loadData();
+                setNombreCancion('');
+                setArtista('');
+                setAlbum('');
+                setGenero('');
+                setEditCancionId(null);
+                loadData();
+                alert("Cancion guardada correctamente");
             });
     };
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
@@ -190,10 +191,14 @@ function App() {
         const url = editGeneroId ? `${baseUrl}/generos/${editGeneroId}` : `${baseUrl}/generos`;
 
         fetch(url, { method: method, headers: getHeaders(), body: JSON.stringify({ nombre: nombreGenero }) })
-            .then(() =>{ setNombreGenero(''); setEditGeneroId(null); loadData(); })
+            .then(() =>{
+                setNombreGenero('');
+                setEditGeneroId(null);
+                loadData();
+                alert("Genero guardado correctamente");
+            })
             .catch(err => console.log(err));
     };
-    // No implementado todavia
     const deleteGenero = (id) => fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
 
@@ -206,10 +211,19 @@ function App() {
         const formData = new FormData();
         formData.append('nombre', nombreArtistaNuevo);
 
+        const inputFoto = document.getElementById('fotoArtistaInput');
+        if (inputFoto && inputFoto.files[0]) {
+            formData.append('imagen', inputFoto.files[0]);
+        }
+
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
                 if(res.ok) {
-                    setNombreArtistaNuevo(''); setEditArtistaId(null); loadData(); alert("Artista guardado correctamente");
+                    setNombreArtistaNuevo('');
+                    setEditArtistaId(null);
+                    if(inputFoto) inputFoto.value = '';
+                    loadData();
+                    alert("Artista guardado correctamente");
                 } else { alert("Error al guardar artista."); }
             }).catch(err => console.log(err));
     };
@@ -219,7 +233,10 @@ function App() {
     // CRUD albums (admin)
     const saveAlbum = (e) => {
         e.preventDefault();
-        if (!artistaAlbumNuevo && !editAlbumId) { alert("Selecciona un artista primero"); return; }
+        if (!artistaAlbumNuevo && !editAlbumId) {
+            alert("Selecciona un artista primero");
+            return;
+        }
 
         const method = editAlbumId ? 'PATCH' : 'POST';
         const url = editAlbumId ? `${baseUrl}/albums/${editAlbumId}` : `${baseUrl}/artistas/${artistaAlbumNuevo}/albums`;
@@ -230,10 +247,20 @@ function App() {
             formData.append('artistaId', artistaAlbumNuevo);
         }
 
+        const inputPortada = document.getElementById('portadaAlbumInput');
+        if (inputPortada && inputPortada.files[0]) {
+            formData.append('portada', inputPortada.files[0]);
+        }
+
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
                 if (res.ok) {
-                    setNombreAlbumNuevo(''); setArtistaAlbumNuevo(''); setEditAlbumId(null); loadData(); alert("Álbum guardado correctamente.");
+                    setNombreAlbumNuevo('');
+                    setArtistaAlbumNuevo('');
+                    setEditAlbumId(null);
+                    if (inputPortada) inputPortada.value = '';
+                    loadData();
+                    alert("Álbum guardado correctamente.");
                 } else { alert("Error al guardar álbum."); }
             }).catch(err => console.log(err));
     };
@@ -294,7 +321,11 @@ function App() {
     // Función auxiliar para limpiar el formulario rápido
     const cerrarYRecargarUsuario = () => {
         setEditUserId(null);
-        setUsername(''); setCorreo(''); setPass(''); setUrlImagen(''); setPremium(0);
+        setUsername('');
+        setCorreo('');
+        setPass('');
+        setUrlImagen('');
+        setPremium(0);
         const inputFoto = document.getElementById('fotoPerfilInput');
         if (inputFoto) inputFoto.value = '';
         loadData();
@@ -315,7 +346,7 @@ function App() {
                 throw new Error('No encontrado');
             })
             .then(data => {
-                setUsuarios([data]); // Lo metemos en un array para que tu listado funcione igual
+                setUsuarios([data]); // Lo metemos en un array para que el listado funcione igual
             })
             .catch(() => {
                 setUsuarios([]); // Si da error , mostramos la lista vacía
@@ -330,7 +361,9 @@ function App() {
             body: JSON.stringify({
                 nombre: nombreLista, idUsuario: user.id
             })
-        }).then(() => {setNombreLista(''); loadData();})
+        }).then(() => {setNombreLista(''); loadData();
+            alert("Lista guardada correctamente");
+        })
     };
     const deleteLista = (id) => fetch(`${baseUrl}/listas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
@@ -383,6 +416,26 @@ function App() {
                 <button className="btn-edit" onClick={() => setIsRegister(!isRegister)}>
                     {isRegister ? 'Ya tengo cuenta' : 'No tengo cuenta, registrarme'}
                 </button>
+                {/* DESCARGA APK */}
+                <div style={{ borderTop: '1px solid #333', paddingTop: '20px', width: '100%', textAlign: 'center' }}>
+                    <p style={{ color: '#b3b3b3', fontSize: '0.9rem', marginBottom: '10px' }}>¿Usas Android?</p>
+                    <a
+                        href={`${baseUrl}/descargas/spotifake.apk`}
+                        download
+                        className="btn-spoti"
+                        style={{
+                            background: '#3DDC84',
+                            color: 'black',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        <span>🤖</span> Descargar APK Móvil
+                    </a>
+                </div>
             </div>
         );
     }
@@ -443,11 +496,6 @@ function App() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                     <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Archivo Audio (mp3)</label>
                                     <input id="audioInput" className="spoti-input" type="file" accept="audio/*" required={!editCancionId} />
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Imagen de Portada</label>
-                                    <input id="portadaInput" className="spoti-input" type="file" accept="image/*" required={!editCancionId} />
                                 </div>
 
                                 {/* DESPLEGABLE DE GÉNERO */}
@@ -571,8 +619,25 @@ function App() {
                         <h2 style={{ color: '#1DB954', marginBottom: '15px' }}>{editArtistaId ? 'Editar Artista' : 'Añadir Artista'}</h2>
                         <form className="spoti-form" onSubmit={saveArtista} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <input className="spoti-input" placeholder="Nombre del Artista..." value={nombreArtistaNuevo} onChange={e => setNombreArtistaNuevo(e.target.value)} required />
+
+                            {/* SUBIR FOTO */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Foto del Artista</label>
+                                <input id="fotoArtistaInput" className="spoti-input" type="file" accept="image/*" />
+                            </div>
+
                             <button className="btn-spoti">{editArtistaId ? 'Guardar Cambios' : 'Añadir Artista'}</button>
-                            {editArtistaId && <button type="button" className="btn-delete" onClick={() => { setEditArtistaId(null); setNombreArtistaNuevo(''); }}>Cancelar Edición</button>}
+
+                            {editArtistaId && (
+                                <button type="button" className="btn-delete" onClick={() => {
+                                    setEditArtistaId(null);
+                                    setNombreArtistaNuevo('');
+                                    const inputFoto = document.getElementById('fotoArtistaInput');
+                                    if(inputFoto) inputFoto.value = '';
+                                }}>
+                                    Cancelar Edición
+                                </button>
+                            )}
                         </form>
                     </div>
                     <div className="song-list">
@@ -597,6 +662,10 @@ function App() {
                         <form className="spoti-form" onSubmit={saveAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <input className="spoti-input" placeholder="Nombre del Álbum..." value={nombreAlbumNuevo} onChange={e => setNombreAlbumNuevo(e.target.value)} required />
                             <select className="spoti-input" value={artistaAlbumNuevo} onChange={e => setArtistaAlbumNuevo(e.target.value)} required>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Portada del Álbum</label>
+                                    <input id="portadaAlbumInput" className="spoti-input" type="file" accept="image/*" />
+                                </div>
                                 <option value="">Selecciona su Artista...</option>
                                 {artistas.map(a => (
                                     <option key={a.id} value={a.id}>{a.nombre}</option>
