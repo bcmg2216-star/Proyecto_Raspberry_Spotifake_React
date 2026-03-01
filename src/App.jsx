@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import logo from './assets/logo.png'
+import logo from '../public/logo.png'
 
 function App() {
     const [user, setUser] = useState(null) // guardamos los datos y el token
