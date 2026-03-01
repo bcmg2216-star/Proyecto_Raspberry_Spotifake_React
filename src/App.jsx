@@ -433,15 +433,15 @@ function App() {
 
                     {/* IMAGEN DEL CÓDIGO QR */}
                     <img
-                        src={`${baseUrl}/descargas/QR.jpeg`}
+                        src={`${baseUrl}/qr/8a7caf13-6b6c-4e4d-a320-91baa330b033_SpotiFake.png`}
                         alt="Código QR para descargar Spotifake"
                         style={{ width: '150px', height: '150px', backgroundColor: 'white', padding: '10px', borderRadius: '8px' }}
                         onError={(e) => e.target.style.display = 'none'}
                     />
 
+                    {/* BOTÓN DE DESCARGA APK (Pendiente) */}
                     <a
-                        href={`${baseUrl}/descargas/spotifake.apk`}
-                        download
+                        href="#"
                         className="btn-spoti"
                         style={{
                             background: '#3DDC84',
@@ -451,6 +451,10 @@ function App() {
                             alignItems: 'center',
                             gap: '10px',
                             fontWeight: 'bold'
+                        }}
+                        onClick={(e) => {
+                            e.preventDefault(); // Evita que la página salte hacia arriba
+                            alert("¡La app de Android estará disponible muy pronto!");
                         }}
                     >
                         <span>🤖</span> Descargar APK Móvil
@@ -687,15 +691,15 @@ function App() {
                         <form className="spoti-form" onSubmit={saveAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <input className="spoti-input" placeholder="Nombre del Álbum..." value={nombreAlbumNuevo} onChange={e => setNombreAlbumNuevo(e.target.value)} required />
                             <select className="spoti-input" value={artistaAlbumNuevo} onChange={e => setArtistaAlbumNuevo(e.target.value)} required>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Portada del Álbum</label>
-                                    <input id="portadaAlbumInput" className="spoti-input" type="file" accept="image/*" />
-                                </div>
                                 <option value="">Selecciona su Artista...</option>
                                 {artistas.map(a => (
                                     <option key={a.id} value={a.id}>{a.nombre}</option>
                                 ))}
                             </select>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Portada del Álbum</label>
+                                <input id="portadaAlbumInput" className="spoti-input" type="file" accept="image/*" />
+                            </div>
                             <button className="btn-spoti">{editAlbumId ? 'Guardar Cambios' : 'Añadir Álbum'}</button>
                             {editAlbumId && <button type="button" className="btn-delete" onClick={() => { setEditAlbumId(null); setNombreAlbumNuevo(''); setArtistaAlbumNuevo(''); }}>Cancelar Edición</button>}
                         </form>
