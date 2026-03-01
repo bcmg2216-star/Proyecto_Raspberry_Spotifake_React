@@ -59,6 +59,11 @@ function App() {
     const [nombreAlbumNuevo, setNombreAlbumNuevo] = useState('');
     const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState('');
 
+    // Estados para la reproduccion
+    const [currentSongIndex, setCurrentSongIndex] = useState(null);
+    const [playlist, setPlaylist] = useState([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+
     const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
 
     const loadData = () => {
@@ -108,6 +113,13 @@ function App() {
     useEffect(() => {
         if(user) loadData();
     }, [user]);
+
+    // Funcion para reproducir una cancion
+    const playSong = (index, songList) => {
+        setPlaylist(songList);
+        setCurrentSongIndex(index);
+        setIsPlaying(true);
+    };
 
     // Gestión de login y registro
     const handleAuth = (e) => {
@@ -553,18 +565,18 @@ function App() {
                                             <span>{c.likes || 0}</span>
                                         </div>
 
-                                        {/* REPRODUCTOR DE MÚSICA */}
+                                        {/* BOTÓN REPRODUCIR */}
                                         {urlDelAudio ? (
-                                            <audio
-                                                controls
-                                                src={urlDelAudio}
-                                                style={{ height: '40px', flex: 1, margin: '0 20px' }}
+                                            <button
+                                                className="btn-spoti"
+                                                style={{ flex: 1, margin: '0 20px' }}
+                                                onClick={() => playSong(canciones.indexOf(c), canciones)}
                                             >
-                                                Tu navegador no soporta el audio.
-                                            </audio>
+                                                ▶ Reproducir
+                                            </button>
                                         ) : (
                                             <p style={{ color: '#ff4d4d', fontSize: '0.8rem', flex: 1, textAlign: 'center' }}>
-                                                No hay archivo de audio
+                                                No hay audio
                                             </p>
                                         )}
 
@@ -866,6 +878,52 @@ function App() {
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+            )}
+
+            {/* --- REPRODUCTOR GLOBAL --- */}
+            {playlist.length > 0 && currentSongIndex !== null && (
+                <div style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0,
+                    backgroundColor: '#181818', borderTop: '1px solid #282828',
+                    padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 1000
+                }}>
+                    <div style={{ minWidth: '150px' }}>
+                        <p style={{ color: 'white', margin: 0, fontWeight: 'bold' }}>
+                            {playlist[currentSongIndex].nombre}
+                        </p>
+                    </div>
+
+                    <audio
+                        controls
+                        autoPlay
+                        src={`${baseUrl}/${playlist[currentSongIndex].urlAudio}`}
+                        style={{ flex: 1, height: '40px' }}
+                        onEnded={() => {
+                            if (currentSongIndex < playlist.length - 1) {
+                                setCurrentSongIndex(currentSongIndex + 1);
+                            }
+                        }}
+                    />
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            className="btn-spoti"
+                            style={{ padding: '5px 10px', backgroundColor: currentSongIndex === 0 ? '#555' : '#1DB954' }}
+                            onClick={() => currentSongIndex > 0 && setCurrentSongIndex(currentSongIndex - 1)}
+                            disabled={currentSongIndex === 0}
+                        >
+                            ⏮
+                        </button>
+                        <button
+                            className="btn-spoti"
+                            style={{ padding: '5px 10px', backgroundColor: currentSongIndex === playlist.length - 1 ? '#555' : '#1DB954' }}
+                            onClick={() => currentSongIndex < playlist.length - 1 && setCurrentSongIndex(currentSongIndex + 1)}
+                            disabled={currentSongIndex === playlist.length - 1}
+                        >
+                            ⏭
+                        </button>
                     </div>
                 </div>
             )}
