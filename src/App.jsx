@@ -417,7 +417,7 @@ function App() {
     if(!user){
         return (
             <div className="main-container">
-                <img src={logo} style={{ width: '120px', marginBottom: '20px' }} alt="Logo" />
+                <img src={logo} style={{ width: '200px', marginBottom: '20px', objectFit: 'contain' }} alt="Logo" />
                 <h1 className="header-title">{isRegister ? 'Crear cuenta' : 'Iniciar Sesión'}</h1>
                 <form className="spoti-form" onSubmit={handleAuth}>
                     {isRegister && <input className="spoti-input" placeholder="Nombre de usuario" value={authUsername} onChange={e => setAuthUsername(e.target.value)} required />}
@@ -428,9 +428,17 @@ function App() {
                 <button className="btn-edit" onClick={() => setIsRegister(!isRegister)}>
                     {isRegister ? 'Ya tengo cuenta' : 'No tengo cuenta, registrarme'}
                 </button>
-                {/* DESCARGA APK */}
-                <div style={{ borderTop: '1px solid #333', paddingTop: '20px', width: '100%', textAlign: 'center' }}>
-                    <p style={{ color: '#b3b3b3', fontSize: '0.9rem', marginBottom: '10px' }}>¿Usas Android?</p>
+                {/* DESCARGA APK Y QR */}
+                <div style={{ borderTop: '1px solid #333', paddingTop: '20px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+
+                    {/* IMAGEN DEL CÓDIGO QR */}
+                    <img
+                        src={`${baseUrl}/descargas/QR.jpeg`}
+                        alt="Código QR para descargar Spotifake"
+                        style={{ width: '150px', height: '150px', backgroundColor: 'white', padding: '10px', borderRadius: '8px' }}
+                        onError={(e) => e.target.style.display = 'none'}
+                    />
+
                     <a
                         href={`${baseUrl}/descargas/spotifake.apk`}
                         download
@@ -459,8 +467,8 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                 <img
                     src={logo}
-                    alt="Spotifake Logo"
-                    style={{ width: '60px', height: '60px', objectFit: 'contain' }}
+                    alt="Spotifake"
+                    style={{ width: '100px', height: '100px', objectFit: 'contain' }}
                 />
                 <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('canciones')}>Canciones</button>
@@ -655,6 +663,11 @@ function App() {
                     <div className="song-list">
                         {artistas.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p> : artistas.map(a => (
                             <div key={a.id} className="song-card">
+                                <img
+                                    src={a.urlImagen || a.imagen ? `${baseUrl}/${a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                    alt={`Foto de ${a.nombre}`}
+                                    style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                                />
                                 <div className="song-info"><h3>{a.nombre}</h3></div>
                                 <div className="actions">
                                     <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
@@ -692,6 +705,11 @@ function App() {
                             const artistaDelAlbum = artistas.find(a => a.id.toString() === (al.artista?.id || al.artistaId || al.artista)?.toString());
                             return (
                                 <div key={al.id} className="song-card">
+                                    <img
+                                        src={al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                        alt={`Portada de ${al.nombre}`}
+                                        style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
+                                    />
                                     <div className="song-info">
                                         <h3>{al.nombre}</h3>
                                         <p>{artistaDelAlbum ? artistaDelAlbum.nombre : 'Artista Desconocido'}</p>
