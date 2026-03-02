@@ -225,7 +225,7 @@ function App() {
 
         const inputFoto = document.getElementById('fotoArtistaInput');
         if (inputFoto && inputFoto.files[0]) {
-            formData.append('imagen', inputFoto.files[0]);
+            formData.append('foto', inputFoto.files[0]);
         }
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
@@ -668,7 +668,7 @@ function App() {
                         {artistas.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p> : artistas.map(a => (
                             <div key={a.id} className="song-card">
                                 <img
-                                    src={a.urlImagen || a.imagen ? `${baseUrl}/${a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                    src={a.foto || a.urlImagen || a.imagen ? `${baseUrl}/${a.foto || a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
                                     alt={`Foto de ${a.nombre}`}
                                     style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
                                 />
