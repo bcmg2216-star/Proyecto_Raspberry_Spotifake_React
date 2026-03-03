@@ -64,7 +64,7 @@ function App() {
     const [playlist, setPlaylist] = useState([]);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    const baseUrl = "https://subpatronal-heathiest-kash.ngrok-free.dev/api";
+    const baseUrl = "https://graduation-charms-ethernet-anne.trycloudflare.com/api";
 
     const loadData = () => {
         if (!user) return;
