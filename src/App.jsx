@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import logo from '../public/logo.jpeg'
+import logo from '../public/logo.png'
 
 function App() {
     const [user, setUser] = useState(null) // guardamos los datos y el token
@@ -22,9 +22,9 @@ function App() {
 
     // Estados formulario canciones
     const [nombreCancion, setNombreCancion] = useState('');
-    const [artista, setArtista] = useState('');
-    const [album, setAlbum] = useState('');
-    const [genero, setGenero] = useState('');
+    const [artista, setArtista] = useState([]);
+    const [album, setAlbum] = useState([]);
+    const [genero, setGenero] = useState([]);
     const [editCancionId, setEditCancionId] = useState(null);
 
     // Estados formularios de edición para géneros, artistas y álbumes
@@ -57,13 +57,17 @@ function App() {
     const [nombreGenero, setNombreGenero] = useState('');
     const [nombreArtistaNuevo, setNombreArtistaNuevo] = useState('');
     const [nombreAlbumNuevo, setNombreAlbumNuevo] = useState('');
-    const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState('');
+    const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState([]);
     const [searchGenero, setSearchGenero] = useState('');
 
     // Estados para la reproduccion
     const [currentSongIndex, setCurrentSongIndex] = useState(null);
     const [playlist, setPlaylist] = useState([]);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    // Estados para navegar
+    const [filtroArtistaId, setFiltroArtistaId] = useState(null);
+    const [filtroAlbumId, setFiltroAlbumId] = useState(null);
 
     const baseUrl = "https://ruser215.freedynamicdns.org/api";
 
@@ -175,9 +179,9 @@ function App() {
 
         const formData = new FormData();
         formData.append('nombre', nombreCancion);
-        formData.append('artistaId', artista);
+        formData.append('artistaId', artista.join(','));
         formData.append('albumId', album);
-        formData.append('genero', genero);
+        formData.append('genero', genero.join(','));
         formData.append('likes', 0);
 
         const inputAudio = document.getElementById('audioInput');
@@ -186,16 +190,31 @@ function App() {
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(() =>{
                 setNombreCancion('');
-                setArtista('');
-                setAlbum('');
-                setGenero('');
+                setArtista([]);
+                setAlbum([]);
+                setGenero([]);
                 setEditCancionId(null);
                 loadData();
                 alert("Cancion guardada correctamente");
             });
     };
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+    // Dar Like a una canción
+    const darLike = (idCancion, likesActuales) => {
+        const nuevosLikes = (likesActuales || 0) + 1;
 
+        // Actualizamos el número en la pantalla al instante
+        setCanciones(canciones.map(c =>
+            c.id === idCancion ? { ...c, likes: nuevosLikes } : c
+        ));
+
+        // Avisamos al servidor para que lo guarde de verdad
+        fetch(`${baseUrl}/canciones/${idCancion}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ likes: nuevosLikes })
+        }).catch(err => console.log("Ocultar error si falla el like:", err));
+    };
 
     //  CRUD generos (admin)
     const saveGenero = (e) => {
@@ -246,19 +265,21 @@ function App() {
     // CRUD albums (admin)
     const saveAlbum = (e) => {
         e.preventDefault();
-        if (!artistaAlbumNuevo && !editAlbumId) {
+        if (artistaAlbumNuevo.length === 0 && !editAlbumId) {
             alert("Selecciona un artista primero");
             return;
         }
 
+        // Cogemos el primer artista marcado para usarlo en la URL de creación
+        const artistaPrincipalUrl = artistaAlbumNuevo[0];
         const method = editAlbumId ? 'PATCH' : 'POST';
-        const url = editAlbumId ? `${baseUrl}/albums/${editAlbumId}` : `${baseUrl}/artistas/${artistaAlbumNuevo}/albums`;
+        const url = editAlbumId ? `${baseUrl}/albums/${editAlbumId}` : `${baseUrl}/artistas/${artistaPrincipalUrl}/albums`;
 
         const formData = new FormData();
         formData.append('nombre', nombreAlbumNuevo);
-        if (editAlbumId && artistaAlbumNuevo) {
-            formData.append('artistaId', artistaAlbumNuevo);
-        }
+
+        // Le mandamos los IDs separados por comas
+        formData.append('artistaId', artistaAlbumNuevo.join(','));
 
         const inputPortada = document.getElementById('portadaAlbumInput');
         if (inputPortada && inputPortada.files[0]) {
@@ -269,7 +290,7 @@ function App() {
             .then(res => {
                 if (res.ok) {
                     setNombreAlbumNuevo('');
-                    setArtistaAlbumNuevo('');
+                    setArtistaAlbumNuevo([]);
                     setEditAlbumId(null);
                     if (inputPortada) inputPortada.value = '';
                     loadData();
@@ -476,7 +497,7 @@ function App() {
                     style={{ width: '100px', height: '100px', objectFit: 'contain' }}
                 />
                 <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                    <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('canciones')}>Canciones</button>
+                    <button className="btn-spoti" style={{background: '#555'}} onClick={() => { setVista('canciones'); setFiltroAlbumId(null); }}>Canciones</button>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('listas')}>Mis Listas</button>
 
                     {/* Botones de administrador ahora divididos en pestañas */}
@@ -484,7 +505,7 @@ function App() {
                         <>
                             <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('generos')}>Géneros</button>
                             <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('artistas')}>Artistas</button>
-                            <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('albums')}>Álbumes</button>
+                            <button className="btn-spoti" style={{background: '#555'}} onClick={() => { setVista('albums'); setFiltroArtistaId(null); }}>Álbumes</button>
                             <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('usuarios')}>Usuarios</button>
                         </>
                     )}
@@ -503,13 +524,30 @@ function App() {
                             <form className="spoti-form" onSubmit={saveCancion} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 <input className="spoti-input" placeholder="Nombre..." value={nombreCancion} onChange={e => setNombreCancion(e.target.value)} required />
 
-                                {/* Artista y Álbum adaptados a la base de datos (desplegables) */}
-                                <select className="spoti-input" value={artista} onChange={e => setArtista(e.target.value)} required>
-                                    <option value="">Selecciona un Artista...</option>
-                                    {artistas.map(a => (
-                                        <option key={a.id} value={a.id}>{a.nombre}</option>
-                                    ))}
-                                </select>
+                                {/* Artista y Álbum */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Artistas (puedes marcar varios)</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', backgroundColor: '#181818', padding: '10px', borderRadius: '4px', border: '1px solid #333' }}>
+                                        {artistas.map(a => (
+                                            <label key={a.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    value={a.id}
+                                                    checked={artista.includes(a.id.toString())}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setArtista([...artista, e.target.value]);
+                                                        } else {
+                                                            setArtista(artista.filter(id => id !== e.target.value));
+                                                        }
+                                                    }}
+                                                    style={{ transform: 'scale(1.2)' }}
+                                                />
+                                                {a.nombre}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 <select className="spoti-input" value={album} onChange={e => setAlbum(e.target.value)} required>
                                     <option value="">Selecciona un Álbum...</option>
@@ -524,12 +562,31 @@ function App() {
                                 </div>
 
                                 {/* DESPLEGABLE DE GÉNERO */}
-                                <select className="spoti-input" value={genero} onChange={e => setGenero(e.target.value)} required>
-                                    <option value="">Selecciona un Género...</option>
-                                    {generos.map(g => (
-                                        <option key={g.id} value={g.id}>{g.nombre}</option>
-                                    ))}
-                                </select>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Géneros (puedes marcar varios)</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', backgroundColor: '#181818', padding: '10px', borderRadius: '4px', border: '1px solid #333' }}>
+                                        {generos.map(g => (
+                                            <label key={g.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    value={g.id}
+                                                    checked={genero.includes(g.id.toString())}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            // Si lo marca, lo añadimos a la lista
+                                                            setGenero([...genero, e.target.value]);
+                                                        } else {
+                                                            // Si lo desmarca, lo quitamos de la lista
+                                                            setGenero(genero.filter(id => id !== e.target.value));
+                                                        }
+                                                    }}
+                                                    style={{ transform: 'scale(1.2)' }}
+                                                />
+                                                {g.nombre}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 <button className="btn-spoti" style={{ marginTop: '10px' }}>
                                     {editCancionId ? 'Guardar Cambios' : 'Subir Canción'}
@@ -538,7 +595,7 @@ function App() {
                                 {editCancionId && (
                                     <button type="button" className="btn-delete" onClick={() => {
                                         setEditCancionId(null);
-                                        setNombreCancion(''); setArtista(''); setAlbum(''); setGenero('');
+                                        setNombreCancion(''); setArtista(''); setAlbum(''); setGenero([]);
                                     }}>Cancelar Edición</button>
                                 )}
                             </form>
@@ -547,12 +604,35 @@ function App() {
 
                     {/* LISTADO DE CANCIONES */}
                     <div className="song-list">
+                        {filtroAlbumId && (
+                            <div style={{ backgroundColor: '#1DB954', color: 'black', padding: '10px', borderRadius: '8px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong>Mostrando solo las canciones de este álbum</strong>
+                                <button className="btn-delete" style={{ backgroundColor: 'black', color: 'white' }} onClick={() => setFiltroAlbumId(null)}>Ver todas</button>
+                            </div>
+                        )}
+
                         {canciones.length === 0 ? (
                             <p style={{ textAlign: 'center', color: '#b3b3b3' }}>No hay canciones disponibles.</p>
                         ) : (
-                            canciones.map(c => {
-                                const artistaObj = artistas.find(a => a.id.toString() === c.artista?.toString());
-                                const nombreArtistaStr = artistaObj ? artistaObj.nombre : c.artista;
+                            canciones
+                                .filter(c => !filtroAlbumId || c.album?.toString() === filtroAlbumId.toString())
+                                .map(c => {
+                                // Para mostrar los nombres de varios artistas juntos
+                                let nombresArtistasStr = "Artista Desconocido";
+                                if (c.artista) {
+                                    let idsArtistas = [];
+                                    if (Array.isArray(c.artista)) {
+                                        idsArtistas = c.artista.map(a => a.id ? a.id.toString() : a.toString());
+                                    } else if (typeof c.artista === 'string') {
+                                        idsArtistas = c.artista.split(',');
+                                    } else if (typeof c.artista === 'number') {
+                                        idsArtistas = [c.artista.toString()];
+                                    }
+
+                                    const objsArtistas = idsArtistas.map(id => artistas.find(a => a.id.toString() === id));
+                                    const nombres = objsArtistas.filter(a => a).map(a => a.nombre);
+                                    nombresArtistasStr = nombres.length > 0 ? nombres.join(' & ') : c.artista.toString();
+                                }
                                 const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
                                 const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
                                 const urlDelAudio = c.urlAudio ? `${baseUrl}/${c.urlAudio}` : null;
@@ -569,12 +649,18 @@ function App() {
 
                                         <div className="song-info" style={{ minWidth: '200px' }}>
                                             <h3>{c.nombre}</h3>
-                                            <p>{nombreArtistaStr} — {nombreAlbumStr}</p>
+                                            <p>{nombresArtistasStr} — {nombreAlbumStr}</p>
                                         </div>
 
                                         {/* CONTADOR DE LIKES */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold' }}>
-                                            <span>💚</span>
+                                        <div
+                                            style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold', cursor: 'pointer' }}
+                                            onClick={() => darLike(c.id, c.likes)}
+                                            title="¡Dar Me Gusta!"
+                                        >
+                                            <span style={{ transition: 'transform 0.1s' }} onMouseDown={e => e.target.style.transform = 'scale(0.8)'} onMouseUp={e => e.target.style.transform = 'scale(1)'}>
+                                                💚
+                                            </span>
                                             <span>{c.likes || 0}</span>
                                         </div>
 
@@ -598,9 +684,24 @@ function App() {
                                                 <button className="btn-edit" onClick={() => {
                                                     setEditCancionId(c.id);
                                                     setNombreCancion(c.nombre);
-                                                    setArtista(c.artista);
+                                                    let artistasEditados = [];
+                                                    if (Array.isArray(c.artista)) {
+                                                        artistasEditados = c.artista.map(a => a.id ? a.id.toString() : a.toString());
+                                                    } else if (typeof c.artista === 'string') {
+                                                        artistasEditados = c.artista.split(',');
+                                                    } else if (typeof c.artista === 'number') {
+                                                        artistasEditados = [c.artista.toString()];
+                                                    }
+                                                    setArtista(artistasEditados);
                                                     setAlbum(c.album);
-                                                    setGenero(c.genero);
+
+                                                    let generosEditados = [];
+                                                    if (Array.isArray(c.genero)) {
+                                                        generosEditados = c.genero.map(g => g.id ? g.id.toString() : g.toString());
+                                                    } else if (typeof c.genero === 'string') {
+                                                        generosEditados = c.genero.split(',');
+                                                    }
+                                                    setGenero(generosEditados);
                                                 }}>Editar</button>
                                                 <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
                                             </div>
@@ -702,6 +803,7 @@ function App() {
                                 />
                                 <div className="song-info"><h3>{a.nombre}</h3></div>
                                 <div className="actions">
+                                    <button className="btn-spoti" onClick={() => { setFiltroArtistaId(a.id); setVista('albums'); }}>Ver Álbumes</button>
                                     <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
                                     <button className="btn-delete" onClick={() => deleteArtista(a.id)}>Borrar</button>
                                 </div>
@@ -718,41 +820,108 @@ function App() {
                         <h2 style={{ color: '#1DB954', marginBottom: '15px' }}>{editAlbumId ? 'Editar Álbum' : 'Añadir Álbum'}</h2>
                         <form className="spoti-form" onSubmit={saveAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <input className="spoti-input" placeholder="Nombre del Álbum..." value={nombreAlbumNuevo} onChange={e => setNombreAlbumNuevo(e.target.value)} required />
-                            <select className="spoti-input" value={artistaAlbumNuevo} onChange={e => setArtistaAlbumNuevo(e.target.value)} required>
-                                <option value="">Selecciona su Artista...</option>
-                                {artistas.map(a => (
-                                    <option key={a.id} value={a.id}>{a.nombre}</option>
-                                ))}
-                            </select>
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Portada del Álbum</label>
+                                <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Artistas del Álbum (puedes marcar varios)</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', backgroundColor: '#181818', padding: '10px', borderRadius: '4px', border: '1px solid #333' }}>
+                                    {artistas.map(a => (
+                                        <label key={a.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                            <input
+                                                type="checkbox"
+                                                value={a.id}
+                                                checked={artistaAlbumNuevo.includes(a.id.toString())}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setArtistaAlbumNuevo([...artistaAlbumNuevo, e.target.value]);
+                                                    } else {
+                                                        setArtistaAlbumNuevo(artistaAlbumNuevo.filter(id => id !== e.target.value));
+                                                    }
+                                                }}
+                                                style={{ transform: 'scale(1.2)' }}
+                                            />
+                                            {a.nombre}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>
+                                    {editAlbumId ? 'Nueva portada (Dejar en blanco para no cambiarla)' : 'Portada del Álbum'}
+                                </label>
                                 <input id="portadaAlbumInput" className="spoti-input" type="file" accept="image/*" />
                             </div>
+
                             <button className="btn-spoti">{editAlbumId ? 'Guardar Cambios' : 'Añadir Álbum'}</button>
-                            {editAlbumId && <button type="button" className="btn-delete" onClick={() => { setEditAlbumId(null); setNombreAlbumNuevo(''); setArtistaAlbumNuevo(''); }}>Cancelar Edición</button>}
+                            {editAlbumId && <button type="button" className="btn-delete" onClick={() => { setEditAlbumId(null); setNombreAlbumNuevo(''); setArtistaAlbumNuevo([]); }}>Cancelar Edición</button>}
                         </form>
                     </div>
                     <div className="song-list">
-                        {albums.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay álbumes creados.</p> : albums.map(al => {
-                            const artistaDelAlbum = artistas.find(a => a.id.toString() === (al.artista?.id || al.artistaId || al.artista)?.toString());
-                            return (
-                                <div key={al.id} className="song-card">
-                                    <img
-                                        src={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
-                                        alt={`Portada de ${al.nombre}`}
-                                        style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
-                                    />
-                                    <div className="song-info">
-                                        <h3>{al.nombre}</h3>
-                                        <p>{artistaDelAlbum ? artistaDelAlbum.nombre : 'Artista Desconocido'}</p>
+                        {filtroArtistaId && (
+                            <div style={{ backgroundColor: '#1DB954', color: 'black', padding: '10px', borderRadius: '8px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong>Mostrando solo los álbumes de este artista</strong>
+                                <button className="btn-delete" style={{ backgroundColor: 'black', color: 'white' }} onClick={() => setFiltroArtistaId(null)}>Ver todos</button>
+                            </div>
+                        )}
+
+                        {albums.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay álbumes creados.</p> : albums
+                            .filter(al => !filtroArtistaId || (al.artista?.id || al.artistaId || al.artista)?.toString() === filtroArtistaId.toString())
+                            .map(al => {
+                                // Para mostrar los nombres de varios artistas juntos en el álbum
+                                let nombresArtistasAlbumStr = "Artista Desconocido";
+                                const datoArtista = al.artista || al.artistaId;
+
+                                if (datoArtista) {
+                                    let idsArtistas = [];
+                                    if (Array.isArray(datoArtista)) {
+                                        idsArtistas = datoArtista.map(a => a.id ? a.id.toString() : a.toString());
+                                    } else if (typeof datoArtista === 'string') {
+                                        idsArtistas = datoArtista.split(',');
+                                    } else if (typeof datoArtista === 'number') {
+                                        idsArtistas = [datoArtista.toString()];
+                                    }
+
+                                    const objsArtistas = idsArtistas.map(id => artistas.find(a => a.id.toString() === id));
+                                    const nombres = objsArtistas.filter(a => a).map(a => a.nombre);
+                                    nombresArtistasAlbumStr = nombres.length > 0 ? nombres.join(' & ') : datoArtista.toString();
+                                }
+                                return (
+                                    <div key={al.id} className="song-card">
+                                        <img
+                                            src={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                            alt={`Portada de ${al.nombre}`}
+                                            style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
+                                        />
+                                        <div className="song-info">
+                                            <h3>{al.nombre}</h3>
+                                            <p>{nombresArtistasAlbumStr}</p>
+                                        </div>
+                                        <div className="actions">
+                                            <button className="btn-spoti" onClick={() => { setFiltroAlbumId(al.id); setVista('canciones'); }}>Ver Canciones</button>
+
+                                            {/* AQUÍ ES DONDE IBA EL BOTÓN DE EDITAR */}
+                                            <button className="btn-edit" onClick={() => {
+                                                setEditAlbumId(al.id);
+                                                setNombreAlbumNuevo(al.nombre);
+
+                                                // Leer los artistas del álbum al editar
+                                                const datoArtista = al.artista || al.artistaId;
+                                                let artistasEditados = [];
+                                                if (Array.isArray(datoArtista)) {
+                                                    artistasEditados = datoArtista.map(a => a.id ? a.id.toString() : a.toString());
+                                                } else if (typeof datoArtista === 'string') {
+                                                    artistasEditados = datoArtista.split(',');
+                                                } else if (typeof datoArtista === 'number') {
+                                                    artistasEditados = [datoArtista.toString()];
+                                                }
+                                                setArtistaAlbumNuevo(artistasEditados);
+                                            }}>Editar</button>
+
+                                            <button className="btn-delete" onClick={() => deleteAlbum(al.id)}>Borrar</button>
+                                        </div>
                                     </div>
-                                    <div className="actions">
-                                        <button className="btn-edit" onClick={() => { setEditAlbumId(al.id); setNombreAlbumNuevo(al.nombre); setArtistaAlbumNuevo(al.artista); }}>Editar</button>
-                                        <button className="btn-delete" onClick={() => deleteAlbum(al.id)}>Borrar</button>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
                     </div>
                 </div>
             )}
@@ -946,13 +1115,18 @@ function App() {
                     </div>
 
                     <audio
+                        key={currentSongIndex}
                         controls
                         autoPlay
                         src={`${baseUrl}/${playlist[currentSongIndex].urlAudio}`}
                         style={{ flex: 1, height: '40px' }}
                         onEnded={() => {
+                            // Si hay más canciones, pasa a la siguiente
                             if (currentSongIndex < playlist.length - 1) {
                                 setCurrentSongIndex(currentSongIndex + 1);
+                            } else {
+                                // Si era la última, vuelve a empezar desde la primera
+                                setCurrentSongIndex(0);
                             }
                         }}
                     />
