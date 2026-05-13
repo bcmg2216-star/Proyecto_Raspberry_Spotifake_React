@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import logo from '../public/logo.png'
+import logo from '../public/logo.jpeg'
 
 function App() {
     const [user, setUser] = useState(null) // guardamos los datos y el token
@@ -58,13 +58,14 @@ function App() {
     const [nombreArtistaNuevo, setNombreArtistaNuevo] = useState('');
     const [nombreAlbumNuevo, setNombreAlbumNuevo] = useState('');
     const [artistaAlbumNuevo, setArtistaAlbumNuevo] = useState('');
+    const [searchGenero, setSearchGenero] = useState('');
 
     // Estados para la reproduccion
     const [currentSongIndex, setCurrentSongIndex] = useState(null);
     const [playlist, setPlaylist] = useState([]);
     const [isPlaying, setIsPlaying] = useState(false);
 
-    const baseUrl = "https://graduation-charms-ethernet-anne.trycloudflare.com/api";
+    const baseUrl = "https://ruser215.freedynamicdns.org/api";
 
     const loadData = () => {
         if (!user) return;
@@ -615,6 +616,7 @@ function App() {
             {/* VISTA: GÉNEROS (ADMIN) */}
             {vista === 'generos' && (user.admin === true || user.admin == 1) && (
                 <div>
+                    {/* --- FORMULARIO CREAR/EDITAR GÉNERO --- */}
                     <div style={{ marginBottom: '40px', padding: '20px', backgroundColor: '#282828', borderRadius: '8px' }}>
                         <h2 style={{ color: '#1DB954', marginBottom: '15px' }}>{editGeneroId ? 'Editar Género' : 'Añadir Género'}</h2>
                         <form className="spoti-form" onSubmit={saveGenero} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -623,15 +625,41 @@ function App() {
                             {editGeneroId && <button type="button" className="btn-delete" onClick={() => { setEditGeneroId(null); setNombreGenero(''); }}>Cancelar Edición</button>}
                         </form>
                     </div>
+
+                    {/* --- BUSCADOR DE GÉNEROS --- */}
+                    <div style={{ marginBottom: '25px', display: 'flex', gap: '10px' }}>
+                        <input
+                            className="spoti-input"
+                            style={{ flex: 1 }}
+                            placeholder="Buscar género por nombre..."
+                            value={searchGenero}
+                            onChange={e => setSearchGenero(e.target.value)}
+                        />
+                        <button className="btn-delete" type="button" onClick={() => setSearchGenero('')}>Limpiar</button>
+                    </div>
+
+                    {/* --- LISTA DE GÉNEROS --- */}
                     <div className="song-list">
-                        {generos.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay géneros creados.</p> : generos.map(g => (
-                            <div key={g.id} className="song-card">
-                                <div className="song-info"><h3>{g.nombre}</h3></div>
-                                <div className="actions">
-                                    <button className="btn-delete" onClick={() => deleteGenero(g.id)}>Borrar</button>
-                                </div>
-                            </div>
-                        ))}
+                        {generos.length === 0 ? (
+                            <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay géneros creados.</p>
+                        ) : (
+                            generos
+                                .filter(g => g.nombre.toLowerCase().includes(searchGenero.toLowerCase()))
+                                .map(g => (
+                                    <div key={g.id} className="song-card">
+                                        <div className="song-info"><h3>{g.nombre}</h3></div>
+                                        <div className="actions">
+                                            <button className="btn-edit" onClick={() => { setEditGeneroId(g.id); setNombreGenero(g.nombre); }}>Editar</button>
+                                            <button className="btn-delete" onClick={() => deleteGenero(g.id)}>Borrar</button>
+                                        </div>
+                                    </div>
+                                ))
+                        )}
+
+                        {/* Mensaje por si la búsqueda no coincide con nada */}
+                        {generos.length > 0 && generos.filter(g => g.nombre.toLowerCase().includes(searchGenero.toLowerCase())).length === 0 && (
+                            <p style={{ color: '#b3b3b3', textAlign: 'center', width: '100%' }}>No se encontró ningún género con ese nombre.</p>
+                        )}
                     </div>
                 </div>
             )}
@@ -710,7 +738,7 @@ function App() {
                             return (
                                 <div key={al.id} className="song-card">
                                     <img
-                                        src={al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                        src={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
                                         alt={`Portada de ${al.nombre}`}
                                         style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
                                     />
