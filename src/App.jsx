@@ -23,7 +23,7 @@ function App() {
     // Estados formulario canciones
     const [nombreCancion, setNombreCancion] = useState('');
     const [artista, setArtista] = useState([]);
-    const [album, setAlbum] = useState([]);
+    const [album, setAlbum] = useState('');
     const [genero, setGenero] = useState([]);
     const [editCancionId, setEditCancionId] = useState(null);
 
@@ -64,6 +64,7 @@ function App() {
     const [currentSongIndex, setCurrentSongIndex] = useState(null);
     const [playlist, setPlaylist] = useState([]);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [audioUrlSegura, setAudioUrlSegura] = useState(null);
 
     // Estados para navegar
     const [filtroArtistaId, setFiltroArtistaId] = useState(null);
@@ -158,6 +159,34 @@ function App() {
         }
     };
 
+    // Descargar el audio de forma segura mandando el token
+    useEffect(() => {
+        let objectUrl = null;
+        if (currentSongIndex !== null && playlist[currentSongIndex]) {
+            setAudioUrlSegura(null); // Vaciamos mientras carga
+            fetch(`${baseUrl}/${playlist[currentSongIndex].urlAudio}`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            })
+                .then(res => {
+                    if(!res.ok) throw new Error("Audio protegido");
+                    return res.blob();
+                })
+                .then(blob => {
+                    objectUrl = URL.createObjectURL(blob);
+                    setAudioUrlSegura(objectUrl);
+                })
+                .catch(err => console.error("Error cargando audio:", err));
+        }
+
+        // Limpiamos la memoria RAM al cambiar de canción
+        return () => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [currentSongIndex, playlist, user]);
+
     // Cabeceras para JSON normal (Usuarios, Listas, Géneros)
     const getHeaders = () => ({
         'Content-Type': 'application/json',
@@ -188,14 +217,23 @@ function App() {
         if (inputAudio.files[0]) formData.append('audio', inputAudio.files[0]);
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
-            .then(() =>{
-                setNombreCancion('');
-                setArtista([]);
-                setAlbum([]);
-                setGenero([]);
-                setEditCancionId(null);
-                loadData();
-                alert("Cancion guardada correctamente");
+            .then(res => {
+                if (res.ok) {
+                    setNombreCancion('');
+                    setArtista([]);
+                    setAlbum('');
+                    setGenero([]);
+                    setEditCancionId(null);
+                    loadData();
+                    alert("Canción guardada correctamente");
+                } else {
+                    // Si el servidor falla, nos dirá el código (401, 500, etc)
+                    alert("Error del servidor: " + res.status);
+                }
+            })
+            .catch(err => {
+                alert("No se pudo conectar con el servidor");
+                console.log(err);
             });
     };
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
@@ -624,7 +662,7 @@ function App() {
                                     if (Array.isArray(c.artista)) {
                                         idsArtistas = c.artista.map(a => a.id ? a.id.toString() : a.toString());
                                     } else if (typeof c.artista === 'string') {
-                                        idsArtistas = c.artista.split(',');
+                                        idsArtistas = c.artista.split(',').map(id => id.trim());
                                     } else if (typeof c.artista === 'number') {
                                         idsArtistas = [c.artista.toString()];
                                     }
@@ -876,7 +914,7 @@ function App() {
                                     if (Array.isArray(datoArtista)) {
                                         idsArtistas = datoArtista.map(a => a.id ? a.id.toString() : a.toString());
                                     } else if (typeof datoArtista === 'string') {
-                                        idsArtistas = datoArtista.split(',');
+                                        idsArtistas = datoArtista.split(',').map(id => id.trim());
                                     } else if (typeof datoArtista === 'number') {
                                         idsArtistas = [datoArtista.toString()];
                                     }
@@ -1118,7 +1156,7 @@ function App() {
                         key={currentSongIndex}
                         controls
                         autoPlay
-                        src={`${baseUrl}/${playlist[currentSongIndex].urlAudio}`}
+                        src={audioUrlSegura || ''}
                         style={{ flex: 1, height: '40px' }}
                         onEnded={() => {
                             // Si hay más canciones, pasa a la siguiente
