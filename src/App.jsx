@@ -493,7 +493,7 @@ function App() {
 
                     {/* IMAGEN DEL CÓDIGO QR */}
                     <img
-                        src={`${baseUrl}/qr/1bcae7c6-37d4-46c6-b7e3-13f5476dec80_qr(4).png`}
+                        src={`${baseUrl}/qr/QR.png`}
                         alt="Código QR para descargar Spotifake"
                         style={{ width: '150px', height: '150px', backgroundColor: 'white', padding: '10px', borderRadius: '8px' }}
                         onError={(e) => e.target.style.display = 'none'}
