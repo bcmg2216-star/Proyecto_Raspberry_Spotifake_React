@@ -1,28 +1,38 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import logo from '../public/logo.png'
 
 
 // --- COMPONENTE PARA CARGAR IMÁGENES PROTEGIDAS ---
 const ImagenSegura = ({ url, token, alt, style }) => {
-    const [imgData, setImgData] = useState('https://ui-avatars.com/api/?name=Foto&background=282828&color=1DB954');
+    // Usamos React.useState y React.useEffect por si acaso
+    const [imgData, setImgData] = React.useState('https://ui-avatars.com/api/?name=Foto&background=282828&color=1DB954');
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (!url) return;
+
+        // Si es el avatar por defecto, no necesita token
         if (url.includes('ui-avatars.com')) {
             setImgData(url);
             return;
         }
 
         fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'ngrok-skip-browser-warning': 'true'
+            }
         })
             .then(res => {
                 if (!res.ok) throw new Error('Error de foto');
                 return res.blob();
             })
-            .then(blob => setImgData(URL.createObjectURL(blob)))
-            .catch(() => {}); // Si falla, se queda el avatar por defecto
+            .then(blob => {
+                setImgData(URL.createObjectURL(blob));
+            })
+            .catch((err) => {
+                console.error("Error cargando la imagen segura:", err);
+            });
     }, [url, token]);
 
     return <img src={imgData} alt={alt} style={style} />;
@@ -1156,7 +1166,9 @@ function App() {
                                             {/* Si es premium o admin, le ponemos sus iconos */}
                                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, paddingBottom: '5px' }}>
                                                 {u.username}
-                                                {u.premium === 1 && <span style={{ color: '#1DB954', fontSize: '0.9rem' }}>⭐ Premium</span>}
+                                                {(u.premium === 1 || u.premium === true || u.premium === "true") && (
+                                                    <span style={{ color: '#1DB954', fontSize: '0.9rem', fontWeight: 'bold' }}>⭐ Premium</span>
+                                                )}
                                                 {(u.admin === 1 || u.admin === true) && <span style={{ color: '#FFD700', fontSize: '0.9rem' }}>👑 Admin</span>}
                                             </h3>
                                             <p>{u.correo}</p>
