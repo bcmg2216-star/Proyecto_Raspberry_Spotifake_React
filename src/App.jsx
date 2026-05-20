@@ -2,6 +2,32 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import logo from '../public/logo.png'
 
+
+// --- COMPONENTE PARA CARGAR IMÁGENES PROTEGIDAS ---
+const ImagenSegura = ({ url, token, alt, style }) => {
+    const [imgData, setImgData] = useState('https://ui-avatars.com/api/?name=Foto&background=282828&color=1DB954');
+
+    useEffect(() => {
+        if (!url) return;
+        if (url.includes('ui-avatars.com')) {
+            setImgData(url);
+            return;
+        }
+
+        fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Error de foto');
+                return res.blob();
+            })
+            .then(blob => setImgData(URL.createObjectURL(blob)))
+            .catch(() => {}); // Si falla, se queda el avatar por defecto
+    }, [url, token]);
+
+    return <img src={imgData} alt={alt} style={style} />;
+};
+
 function App() {
 
     // para ver si cambia
@@ -352,8 +378,8 @@ function App() {
         const bodyData = {
             username: username,
             correo: correo,
-            premium: premium === 1 || premium === true,
-            admin: isAdmin === 1 || isAdmin === true
+            premium: premium,
+            admin: isAdmin
         };
         if (pass) bodyData.pass = pass;
 
@@ -499,7 +525,7 @@ function App() {
                     <img
                         src={`${baseUrl}/qr/QR.png`}
                         alt="Código QR para descargar Spotifake"
-                        style={{ width: '150px', height: '150px', backgroundColor: 'white', padding: '10px', borderRadius: '8px' }}
+                        style={{ width: '150px', height: '150px', borderRadius: '8px' }}
                         onError={(e) => e.target.style.display = 'none'}
                     />
 
@@ -532,13 +558,15 @@ function App() {
     return (
         <div className="main-container">
             {/* Cabecera con saludo y botones de control */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            {/* Le metemos un marginBottom de 40px para separarlo de lo de abajo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '40px' }}>
                 <img
                     src={logo}
                     alt="Spotifake"
                     style={{ width: '100px', height: '100px', objectFit: 'contain' }}
                 />
-                <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                {/* Aumentamos el gap a 15px para separar más los botones entre sí */}
+                <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => { setVista('canciones'); setFiltroAlbumId(null); }}>Canciones</button>
                     <button className="btn-spoti" style={{background: '#555'}} onClick={() => setVista('listas')}>Mis Listas</button>
 
@@ -562,7 +590,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.0.1
+                    v1.0.2
                 </div>
             </div>
 
@@ -671,21 +699,18 @@ function App() {
                                 .filter(c => !filtroAlbumId || c.album?.toString() === filtroAlbumId.toString())
                                 .map(c => {
                                 // Para mostrar los nombres de varios artistas juntos
-                                let nombresArtistasStr = "Artista Desconocido";
-                                if (c.artista) {
-                                    let idsArtistas = [];
-                                    if (Array.isArray(c.artista)) {
-                                        idsArtistas = c.artista.map(a => a.id ? a.id.toString() : a.toString());
-                                    } else if (typeof c.artista === 'string') {
-                                        idsArtistas = c.artista.split(',').map(id => id.trim());
-                                    } else if (typeof c.artista === 'number') {
-                                        idsArtistas = [c.artista.toString()];
-                                    }
+                                    let nombresArtistasStr = "Artista Desconocido";
+                                    if (c.artista) {
+                                        let listaIds = Array.isArray(c.artista) ? c.artista.map(a => a.id || a) : c.artista.toString().split(',');
+                                        const nombres = listaIds.map(id => {
+                                            let encontrado = artistas.find(a => a.id.toString() === id.toString());
+                                            return encontrado ? encontrado.nombre : null;
+                                        }).filter(n => n);
 
-                                    const objsArtistas = idsArtistas.map(id => artistas.find(a => a.id.toString() === id));
-                                    const nombres = objsArtistas.filter(a => a).map(a => a.nombre);
-                                    nombresArtistasStr = nombres.length > 0 ? nombres.join(' & ') : c.artista.toString();
-                                }
+                                        if (nombres.length > 0) {
+                                            nombresArtistasStr = nombres.join(' & ');
+                                        }
+                                    }
                                 const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
                                 const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
                                 const urlDelAudio = c.urlAudio ? `${baseUrl}/${c.urlAudio}` : null;
@@ -694,8 +719,9 @@ function App() {
                                     : 'https://ui-avatars.com/api/?name=%F0%9F%8E%B5&background=282828&color=1DB954';
                                 return (
                                     <div key={c.id} className="song-card">
-                                        <img
-                                            src={urlDeLaPortada}
+                                        <ImagenSegura
+                                            url={urlDeLaPortada}
+                                            token={user.token}
                                             alt={`Portada de ${c.nombre}`}
                                             style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
                                         />
@@ -849,8 +875,9 @@ function App() {
                     <div className="song-list">
                         {artistas.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p> : artistas.map(a => (
                             <div key={a.id} className="song-card">
-                                <img
-                                    src={a.foto || a.urlImagen || a.imagen ? `${baseUrl}/${a.foto || a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                <ImagenSegura
+                                    url={a.foto || a.urlImagen || a.imagen ? `${baseUrl}/${a.foto || a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                    token={user.token}
                                     alt={`Foto de ${a.nombre}`}
                                     style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
                                 />
@@ -940,8 +967,9 @@ function App() {
                                 }
                                 return (
                                     <div key={al.id} className="song-card">
-                                        <img
-                                            src={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                        <ImagenSegura
+                                            url={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                            token={user.token}
                                             alt={`Portada de ${al.nombre}`}
                                             style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
                                         />
@@ -1033,8 +1061,8 @@ function App() {
                                 <label style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem', cursor: 'pointer' }}>
                                     <input
                                         type="checkbox"
-                                        checked={premium === 1 || premium === true}
-                                        onChange={e => setPremium(e.target.checked ? 1 : 0)}
+                                        checked={premium}
+                                        onChange={e => setPremium(e.target.checked)}
                                         style={{ transform: 'scale(1.5)' }}
                                     />
                                     Hacer a este usuario Premium ⭐
@@ -1044,8 +1072,8 @@ function App() {
                                 <label style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem', cursor: 'pointer' }}>
                                     <input
                                         type="checkbox"
-                                        checked={isAdmin === 1 || isAdmin === true}
-                                        onChange={e => setIsAdmin(e.target.checked ? 1 : 0)}
+                                        checked={isAdmin}
+                                        onChange={e => setIsAdmin(e.target.checked)}
                                         style={{ transform: 'scale(1.5)' }}
                                     />
                                     Hacer a este usuario Admin 👑
@@ -1118,7 +1146,12 @@ function App() {
                             return (
                                 <div key={u.id} className="song-card">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                        <img src={fotoPerfil} alt={`Perfil de ${u.username}`} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} />
+                                        <ImagenSegura
+                                            url={fotoPerfil}
+                                            token={user.token}
+                                            alt={`Perfil de ${u.username}`}
+                                            style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                                        />
                                         <div className="song-info">
                                             {/* Si es premium o admin, le ponemos sus iconos */}
                                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, paddingBottom: '5px' }}>
@@ -1141,8 +1174,8 @@ function App() {
                                             setCorreo(u.correo);
                                             setPass('');
                                             setUrlImagen(u.urlImagen || '');
-                                            setPremium(u.premium || 0);
-                                            setIsAdmin(u.admin || 0);
+                                            setPremium(u.premium === 1 || u.premium === true);
+                                            setIsAdmin(u.admin === 1|| u.admin === true);
                                         }}>Editar</button>
 
                                         {u.id !== user.id && <button className="btn-delete" onClick={() => deleteUsuario(u.id)}>Borrar</button>}
