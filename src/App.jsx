@@ -210,7 +210,7 @@ function App() {
         formData.append('nombre', nombreCancion);
         formData.append('artistaIds', artista.join(','));
         formData.append('albumId', album);
-        formData.append('generoIds', genero.join(','));
+        formData.append('generosIds', genero.join(','));
         formData.append('likes', 0);
 
         const inputAudio = document.getElementById('audioInput');
