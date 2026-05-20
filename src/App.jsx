@@ -3,6 +3,10 @@ import './App.css'
 import logo from '../public/logo.png'
 
 function App() {
+
+    // para ver si cambia
+    const version = "1.0.1";
+
     const [user, setUser] = useState(null) // guardamos los datos y el token
     const [isRegister, setIsRegister] = useState(false);
 
@@ -548,6 +552,17 @@ function App() {
                         </>
                     )}
                     <button className="btn-delete" onClick={() => { setUser(null); setVista('canciones'); }}>Cerrar Sesión</button>
+                </div>
+                {/* Versión para control de cambios */}
+                <div style={{
+                    position: 'fixed',
+                    bottom: '10px',
+                    right: '10px',
+                    color: '#555',
+                    fontSize: '0.7rem',
+                    pointerEvents: 'none' // Para que no moleste si haces clic ahí
+                }}>
+                    v1.0.1
                 </div>
             </div>
 
