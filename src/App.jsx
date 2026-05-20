@@ -208,9 +208,9 @@ function App() {
 
         const formData = new FormData();
         formData.append('nombre', nombreCancion);
-        formData.append('artistaId', artista.join(','));
+        formData.append('artistaIds', artista.join(','));
         formData.append('albumId', album);
-        formData.append('genero', genero.join(','));
+        formData.append('generoIds', genero.join(','));
         formData.append('likes', 0);
 
         const inputAudio = document.getElementById('audioInput');
@@ -348,8 +348,8 @@ function App() {
         const bodyData = {
             username: username,
             correo: correo,
-            premium: premium === 1 || premium === true ? 1 : 0,
-            admin: isAdmin === 1 || isAdmin === true ? 1 : 0
+            premium: premium === 1 || premium === true,
+            admin: isAdmin === 1 || isAdmin === true
         };
         if (pass) bodyData.pass = pass;
 
