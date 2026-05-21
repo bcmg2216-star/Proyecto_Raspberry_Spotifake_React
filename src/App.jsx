@@ -40,9 +40,6 @@ const ImagenSegura = ({ url, token, alt, style }) => {
 
 function App() {
 
-    // para ver si cambia
-    const version = "1.0.1";
-
     const [user, setUser] = useState(null) // guardamos los datos y el token
     const [isRegister, setIsRegister] = useState(false);
 
@@ -319,7 +316,6 @@ function App() {
     };
     const deleteGenero = (id) => fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
-
     // CRUD artistas (admin)
     const saveArtista = (e) => {
         e.preventDefault();
@@ -348,12 +344,11 @@ function App() {
                     alert("Artista guardado correctamente");
                 } else { alert("Error al guardar artista."); }
             }).catch(err => {
-                setIsLoading(true);
+                setIsLoading(false);
                 console.log(err);
         });
     };
     const deleteArtista = (id) => fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
-
 
     // CRUD albums (admin)
     const saveAlbum = (e) => {
@@ -362,6 +357,8 @@ function App() {
             alert("Selecciona un artista primero");
             return;
         }
+
+        setIsLoading(true);
 
         // Cogemos el primer artista marcado para usarlo en la URL de creación
         const artistaPrincipalUrl = artistaAlbumNuevo[0];
@@ -381,6 +378,7 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
+                setIsLoading(false);
                 if (res.ok) {
                     setNombreAlbumNuevo('');
                     setArtistaAlbumNuevo([]);
@@ -389,10 +387,12 @@ function App() {
                     loadData();
                     alert("Álbum guardado correctamente.");
                 } else { alert("Error al guardar álbum."); }
-            }).catch(err => console.log(err));
+            }).catch(err => {
+                setIsLoading(false);
+                console.log(err);
+        });
     };
     const deleteAlbum = (id) => fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
-
 
     // CRUD usuarios (admin)
     const saveUsuario = (e) => {
@@ -448,7 +448,7 @@ function App() {
                 alert("Error al actualizar los datos de texto del usuario.");
             }
         }).catch(err => {
-            setIsLoading(true);
+            setIsLoading(false);
             console.log(err);
         });
     };
@@ -609,7 +609,6 @@ function App() {
             )}
 
             {/* Cabecera con saludo y botones de control */}
-            {/* Le metemos un marginBottom de 40px para separarlo de lo de abajo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '40px' }}>
                 <img
                     src={logo}
@@ -641,7 +640,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.0.3
+                    v1.0.4
                 </div>
             </div>
 
@@ -927,31 +926,24 @@ function App() {
                         {artistas.length === 0 ? (
                             <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p>
                         ) : (
-                            artistas.map(a => {
-                                // Limpiamos la ruta para evitar doble barra o errores
-                                const rutaFoto = a.foto || a.urlImagen || a.imagen;
-                                const fotoLimpia = rutaFoto ? (rutaFoto.startsWith('/') ? rutaFoto.substring(1) : rutaFoto) : null;
-                                const urlFinalArtista = fotoLimpia ? `${baseUrl}/${fotoLimpia}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`;
-
-                                return (
-                                    <div key={a.id} className="song-card">
-                                        <ImagenSegura
-                                            url={urlFinalArtista}
-                                            token={user.token}
-                                            alt={`Foto de ${a.nombre}`}
-                                            style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
-                                        />
-                                        <div className="song-info">
-                                            <h3>{a.nombre}</h3>
-                                        </div>
-                                        <div className="actions">
-                                            <button className="btn-spoti" onClick={() => { setFiltroArtistaId(a.id); setVista('albums'); }}>Ver Álbumes</button>
-                                            <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
-                                            <button className="btn-delete" onClick={() => deleteArtista(a.id)}>Borrar</button>
-                                        </div>
+                            artistas.map(a => (
+                                <div key={a.id} className="song-card">
+                                    <ImagenSegura
+                                        url={(a.foto || a.urlImagen || a.imagen) ? `${baseUrl}/${String(a.foto || a.urlImagen || a.imagen).replace(/^\/+/, '')}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                        token={user.token}
+                                        alt={`Foto de ${a.nombre}`}
+                                        style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                    <div className="song-info">
+                                        <h3>{a.nombre}</h3>
                                     </div>
-                                );
-                            })
+                                    <div className="actions">
+                                        <button className="btn-spoti" onClick={() => { setFiltroArtistaId(a.id); setVista('albums'); }}>Ver Álbumes</button>
+                                        <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
+                                        <button className="btn-delete" onClick={() => deleteArtista(a.id)}>Borrar</button>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>
@@ -1031,10 +1023,8 @@ function App() {
                                     nombresArtistasAlbumStr = nombres.length > 0 ? nombres.join(' & ') : datoArtista.toString();
                                 }
 
-                                // Lógica de limpieza de ruta para la portada
                                 const rutaPortada = al.portada || al.urlPortada || al.urlportada;
-                                const portadaLimpia = rutaPortada ? (rutaPortada.startsWith('/') ? rutaPortada.substring(1) : rutaPortada) : null;
-                                const urlFinalAlbum = portadaLimpia ? `${baseUrl}/${portadaLimpia}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`;
+                                const urlFinalAlbum = rutaPortada ? `${baseUrl}/${String(rutaPortada).replace(/^\/+/, '')}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`;
 
                                 return (
                                     <div key={al.id} className="song-card">
