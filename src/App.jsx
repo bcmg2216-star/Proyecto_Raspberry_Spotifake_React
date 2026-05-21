@@ -46,6 +46,9 @@ function App() {
     const [user, setUser] = useState(null) // guardamos los datos y el token
     const [isRegister, setIsRegister] = useState(false);
 
+    // Estado para la pantalla de carga
+    const [isLoading, setIsLoading] = useState(false);
+
     // Estados de sesión
     const [authUsername, setAuthUsername] = useState('');
     const [authCorreo, setAuthCorreo] = useState('');
@@ -243,6 +246,9 @@ function App() {
     // CRUD canciones
     const saveCancion = (e) => {
         e.preventDefault();
+
+        setIsLoading(true);
+
         const method = editCancionId ? 'PATCH' : 'POST';
         const url = editCancionId ? `${baseUrl}/canciones/${editCancionId}` : `${baseUrl}/canciones`;
 
@@ -258,6 +264,7 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
+                setIsLoading(false);
                 if (res.ok) {
                     setNombreCancion('');
                     setArtista([]);
@@ -272,6 +279,7 @@ function App() {
                 }
             })
             .catch(err => {
+                setIsLoading(false);
                 alert("No se pudo conectar con el servidor");
                 console.log(err);
             });
@@ -315,6 +323,9 @@ function App() {
     // CRUD artistas (admin)
     const saveArtista = (e) => {
         e.preventDefault();
+
+        setIsLoading(true);
+
         const method = editArtistaId ? 'PATCH' : 'POST';
         const url = editArtistaId ? `${baseUrl}/artistas/${editArtistaId}` : `${baseUrl}/artistas`;
 
@@ -328,6 +339,7 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
+                setIsLoading(false);
                 if(res.ok) {
                     setNombreArtistaNuevo('');
                     setEditArtistaId(null);
@@ -335,7 +347,10 @@ function App() {
                     loadData();
                     alert("Artista guardado correctamente");
                 } else { alert("Error al guardar artista."); }
-            }).catch(err => console.log(err));
+            }).catch(err => {
+                setIsLoading(true);
+                console.log(err);
+        });
     };
     const deleteArtista = (id) => fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
 
@@ -382,6 +397,9 @@ function App() {
     // CRUD usuarios (admin)
     const saveUsuario = (e) => {
         e.preventDefault();
+
+        setIsLoading(true);
+
         if(!editUserId) return;
 
         // 1. Preparamos los datos de texto (JSON normal)
@@ -398,6 +416,7 @@ function App() {
             method: 'PATCH', headers: getHeaders(),
             body: JSON.stringify(bodyData)
         }).then(res => {
+            setIsLoading(false);
             if(res.ok) {
                 // 3. Si el texto se guardó bien, comprobamos si el admin seleccionó una foto
                 const inputFoto = document.getElementById('fotoPerfilInput');
@@ -413,6 +432,7 @@ function App() {
                         headers: getMultipartHeaders(),
                         body: formData
                     }).then(resFoto => {
+                        setIsLoading(false);
                         if (resFoto.ok) {
                             cerrarYRecargarUsuario();
                         } else {
@@ -427,7 +447,10 @@ function App() {
             } else {
                 alert("Error al actualizar los datos de texto del usuario.");
             }
-        }).catch(err => console.log(err));
+        }).catch(err => {
+            setIsLoading(true);
+            console.log(err);
+        });
     };
 
     // Función auxiliar para limpiar el formulario rápido
@@ -567,6 +590,24 @@ function App() {
     // Pantalla principal (si hay usuario)
     return (
         <div className="main-container">
+
+            {/* PANTALLA DE CARGA */}
+            {isLoading && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column',
+                    justifyContent: 'center', alignItems: 'center', zIndex: 9999
+                }}>
+                    <div style={{
+                        border: '4px solid #333', borderTop: '4px solid #1DB954',
+                        borderRadius: '50%', width: '50px', height: '50px', animation: 'spin 1s linear infinite'
+                    }} />
+                    <h2 style={{ color: '#1DB954', marginTop: '20px' }}>Subiendo archivos...</h2>
+                    <p style={{ color: 'white' }}>Por favor, espera, no cierres la página.</p>
+                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                </div>
+            )}
+
             {/* Cabecera con saludo y botones de control */}
             {/* Le metemos un marginBottom de 40px para separarlo de lo de abajo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '40px' }}>
@@ -600,7 +641,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.0.2
+                    v1.0.3
                 </div>
             </div>
 
@@ -883,22 +924,35 @@ function App() {
                         </form>
                     </div>
                     <div className="song-list">
-                        {artistas.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p> : artistas.map(a => (
-                            <div key={a.id} className="song-card">
-                                <ImagenSegura
-                                    url={a.foto || a.urlImagen || a.imagen ? `${baseUrl}/${a.foto || a.urlImagen || a.imagen}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
-                                    token={user.token}
-                                    alt={`Foto de ${a.nombre}`}
-                                    style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
-                                />
-                                <div className="song-info"><h3>{a.nombre}</h3></div>
-                                <div className="actions">
-                                    <button className="btn-spoti" onClick={() => { setFiltroArtistaId(a.id); setVista('albums'); }}>Ver Álbumes</button>
-                                    <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
-                                    <button className="btn-delete" onClick={() => deleteArtista(a.id)}>Borrar</button>
-                                </div>
-                            </div>
-                        ))}
+                        {artistas.length === 0 ? (
+                            <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay artistas creados.</p>
+                        ) : (
+                            artistas.map(a => {
+                                // Limpiamos la ruta para evitar doble barra o errores
+                                const rutaFoto = a.foto || a.urlImagen || a.imagen;
+                                const fotoLimpia = rutaFoto ? (rutaFoto.startsWith('/') ? rutaFoto.substring(1) : rutaFoto) : null;
+                                const urlFinalArtista = fotoLimpia ? `${baseUrl}/${fotoLimpia}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`;
+
+                                return (
+                                    <div key={a.id} className="song-card">
+                                        <ImagenSegura
+                                            url={urlFinalArtista}
+                                            token={user.token}
+                                            alt={`Foto de ${a.nombre}`}
+                                            style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
+                                        />
+                                        <div className="song-info">
+                                            <h3>{a.nombre}</h3>
+                                        </div>
+                                        <div className="actions">
+                                            <button className="btn-spoti" onClick={() => { setFiltroArtistaId(a.id); setVista('albums'); }}>Ver Álbumes</button>
+                                            <button className="btn-edit" onClick={() => { setEditArtistaId(a.id); setNombreArtistaNuevo(a.nombre); }}>Editar</button>
+                                            <button className="btn-delete" onClick={() => deleteArtista(a.id)}>Borrar</button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             )}
@@ -946,6 +1000,7 @@ function App() {
                             {editAlbumId && <button type="button" className="btn-delete" onClick={() => { setEditAlbumId(null); setNombreAlbumNuevo(''); setArtistaAlbumNuevo([]); }}>Cancelar Edición</button>}
                         </form>
                     </div>
+
                     <div className="song-list">
                         {filtroArtistaId && (
                             <div style={{ backgroundColor: '#1DB954', color: 'black', padding: '10px', borderRadius: '8px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -975,10 +1030,16 @@ function App() {
                                     const nombres = objsArtistas.filter(a => a).map(a => a.nombre);
                                     nombresArtistasAlbumStr = nombres.length > 0 ? nombres.join(' & ') : datoArtista.toString();
                                 }
+
+                                // Lógica de limpieza de ruta para la portada
+                                const rutaPortada = al.portada || al.urlPortada || al.urlportada;
+                                const portadaLimpia = rutaPortada ? (rutaPortada.startsWith('/') ? rutaPortada.substring(1) : rutaPortada) : null;
+                                const urlFinalAlbum = portadaLimpia ? `${baseUrl}/${portadaLimpia}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`;
+
                                 return (
                                     <div key={al.id} className="song-card">
                                         <ImagenSegura
-                                            url={al.portada || al.urlPortada || al.urlportada ? `${baseUrl}/${al.urlPortada || al.urlportada}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`}
+                                            url={urlFinalAlbum}
                                             token={user.token}
                                             alt={`Portada de ${al.nombre}`}
                                             style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
@@ -989,8 +1050,6 @@ function App() {
                                         </div>
                                         <div className="actions">
                                             <button className="btn-spoti" onClick={() => { setFiltroAlbumId(al.id); setVista('canciones'); }}>Ver Canciones</button>
-
-                                            {/* AQUÍ ES DONDE IBA EL BOTÓN DE EDITAR */}
                                             <button className="btn-edit" onClick={() => {
                                                 setEditAlbumId(al.id);
                                                 setNombreAlbumNuevo(al.nombre);
