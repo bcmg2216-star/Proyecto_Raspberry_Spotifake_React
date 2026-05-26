@@ -146,16 +146,24 @@ function App() {
             })
             .catch(err => console.error("Error al cargar géneros:", err));
 
+
         fetch(`${baseUrl}/artistas`, { headers: headersConToken })
             .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setArtistas(data); })
+            .then(data => {
+                console.log("👀 ARTISTAS DESDE EL SERVIDOR:", data); // <-- CHIVATO
+                if (Array.isArray(data)) setArtistas(data);
+            })
             .catch(err => console.error("Error al cargar artistas:", err));
 
-        // CARGAMOS LOS ALBUMES PARA LOS DESPLEGABLES Y LISTADOS
+        // CARGAMOS LOS ÁLBUMES PARA LOS DESPLEGABLES Y LISTADOS
         fetch(`${baseUrl}/albums`, { headers: headersConToken })
             .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setAlbums(data); })
+            .then(data => {
+                console.log("👀 ÁLBUMES DESDE EL SERVIDOR:", data); // <-- CHIVATO
+                if (Array.isArray(data)) setAlbums(data);
+            })
             .catch(err => console.error("Error al cargar álbumes:", err));
+
 
         fetch(`${baseUrl}/usuarios/${user.id}/listas`, { headers: headersConToken })
             .then(r => r.json())
@@ -666,7 +674,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.1.0
+                    v1.1.2
                 </div>
             </div>
 
@@ -820,6 +828,7 @@ function App() {
                                 .filter(c => !filtroAlbumId || (c.album?.id || c.albumId || c.album)?.toString() === filtroAlbumId.toString())
                                 .map(c => {
 
+                                    // --- ARTISTAS ---
                                     let nombresArtistasStr = "Artista Desconocido";
                                     const datoArtista = c.artista || c.artistas || c.artistaId || c.artistaIds;
 
@@ -841,6 +850,29 @@ function App() {
                                         }
                                     }
 
+                                    // --- GÉNEROS ---
+                                    let nombresGenerosStr = "Sin género";
+                                    const datoGenero = c.genero || c.generos || c.generoId || c.generosIds;
+
+                                    if (datoGenero) {
+                                        let nombresG = [];
+                                        if (Array.isArray(datoGenero) && datoGenero.length > 0 && datoGenero[0].nombre) {
+                                            nombresG = datoGenero.map(g => g.nombre);
+                                        } else {
+                                            let listaIdsG = Array.isArray(datoGenero) ? datoGenero.map(g => g.id || g) : datoGenero.toString().split(',');
+                                            nombresG = listaIdsG.map(id => {
+                                                let encontrado = generos.find(g => g.id.toString() === id.toString().trim());
+                                                return encontrado ? encontrado.nombre : null;
+                                            }).filter(n => n);
+                                        }
+                                        if (nombresG.length > 0) {
+                                            nombresGenerosStr = nombresG.join(', ');
+                                        } else if (typeof datoGenero === 'string' && isNaN(datoGenero.split(',')[0])) {
+                                            nombresGenerosStr = datoGenero;
+                                        }
+                                    }
+
+                                    // --- ÁLBUMES ---
                                     const idDelAlbum = c.album?.id || c.albumId || c.album;
                                     const albumObj = albums.find(al => al.id.toString() === idDelAlbum?.toString());
                                     const nombreAlbumStr = albumObj ? albumObj.nombre : (idDelAlbum || "Desconocido");
@@ -853,6 +885,8 @@ function App() {
                                             <div className="song-info" style={{ minWidth: '200px' }}>
                                                 <h3>{c.nombre}</h3>
                                                 <p>{nombresArtistasStr} — {nombreAlbumStr}</p>
+                                                {/* AQUÍ PINTAMOS LOS GÉNEROS */}
+                                                <p style={{ fontSize: '0.8rem', color: '#1DB954', marginTop: '2px', margin: '0' }}> {nombresGenerosStr}</p>
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => darLike(c.id, c.likes)} title="¡Dar Me Gusta!">
@@ -874,15 +908,23 @@ function App() {
                                                         Likes
                                                     </button>
                                                     <button className="btn-edit" onClick={() => {
-                                                        setEditCancionId(c.id); setNombreCancion(c.nombre);
+                                                        setEditCancionId(c.id);
+                                                        setNombreCancion(c.nombre);
+
+                                                        // Cargar múltiples artistas al editar
                                                         let artistasEditados = [];
-                                                        if (Array.isArray(c.artista)) artistasEditados = c.artista.map(a => a.id ? a.id.toString() : a.toString());
-                                                        else if (typeof c.artista === 'string') artistasEditados = c.artista.split(',');
-                                                        else if (typeof c.artista === 'number') artistasEditados = [c.artista.toString()];
-                                                        setArtista(artistasEditados); setAlbum(c.album);
+                                                        if (Array.isArray(datoArtista)) artistasEditados = datoArtista.map(a => a.id ? a.id.toString() : a.toString());
+                                                        else if (typeof datoArtista === 'string') artistasEditados = datoArtista.split(',');
+                                                        else if (typeof datoArtista === 'number') artistasEditados = [datoArtista.toString()];
+                                                        setArtista(artistasEditados);
+
+                                                        setAlbum(c.album);
+
+                                                        // Cargar múltiples géneros al editar
                                                         let generosEditados = [];
-                                                        if (Array.isArray(c.genero)) generosEditados = c.genero.map(g => g.id ? g.id.toString() : g.toString());
-                                                        else if (typeof c.genero === 'string') generosEditados = c.genero.split(',');
+                                                        if (Array.isArray(datoGenero)) generosEditados = datoGenero.map(g => g.id ? g.id.toString() : g.toString());
+                                                        else if (typeof datoGenero === 'string') generosEditados = datoGenero.split(',');
+                                                        else if (typeof datoGenero === 'number') generosEditados = [datoGenero.toString()];
                                                         setGenero(generosEditados);
                                                     }}>Editar</button>
                                                     <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
@@ -982,8 +1024,9 @@ function App() {
                             artistas.map(a => (
                                 <div key={a.id} className="song-card">
                                     <ImagenSegura
-                                        url={getSafeUrl(a.foto || a.urlImagen || a.imagen, a.nombre)}
+                                        url={getSafeUrl(a.fotoUrl || a.foto || a.urlImagen || a.imagen, a.nombre)}
                                         token={user.token}
+                                        alt={`Foto de ${a.nombre}`}
                                         style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
                                     />
                                     <div className="song-info">
@@ -1077,7 +1120,7 @@ function App() {
                                 return (
                                     <div key={al.id} className="song-card">
                                         <ImagenSegura
-                                            url={getSafeUrl(al.portada || al.urlPortada || al.urlportada, al.nombre)}
+                                            url={getSafeUrl(al.portadaUrl || al.portada || al.urlPortada || al.urlportada, al.nombre)}
                                             token={user.token}
                                             style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
                                         />
