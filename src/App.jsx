@@ -3,7 +3,7 @@ import './App.css'
 import logo from '../public/logo.png'
 
 
-// --- COMPONENTE PARA CARGAR IMÁGENES PROTEGIDAS ---
+// --- COMPONENTE PARA CARGAR IMAGENES PROTEGIDAS ---
 const ImagenSegura = ({ url, token, alt, style }) => {
     // Usamos React.useState y React.useEffect por si acaso
     const [imgData, setImgData] = React.useState('https://ui-avatars.com/api/?name=Foto&background=282828&color=1DB954');
@@ -46,7 +46,7 @@ function App() {
     // Estado para la pantalla de carga
     const [isLoading, setIsLoading] = useState(false);
 
-    // Estados de sesión
+    // Estados de sesion
     const [authUsername, setAuthUsername] = useState('');
     const [authCorreo, setAuthCorreo] = useState('');
     const [authPass, setAuthPass] = useState('');
@@ -67,7 +67,7 @@ function App() {
     const [genero, setGenero] = useState([]);
     const [editCancionId, setEditCancionId] = useState(null);
 
-    // Estados formularios de edición para géneros, artistas y álbumes
+    // Estados formularios de edicion para generos, artistas y albumes
     const [editGeneroId, setEditGeneroId] = useState(null);
     const [editArtistaId, setEditArtistaId] = useState(null);
     const [editAlbumId, setEditAlbumId] = useState(null);
@@ -110,7 +110,21 @@ function App() {
     const [filtroArtistaId, setFiltroArtistaId] = useState(null);
     const [filtroAlbumId, setFiltroAlbumId] = useState(null);
 
+    // Estado para recordar las canciones a las que tu has dado like
+    const [cancionesLikeadas, setCancionesLikeadas] = useState([]);
+
+    // Estados para el buscador de artistas en el formulario de canciones
+    const [searchArtistaForm, setSearchArtistaForm] = useState('');
+    const [showArtistaDropdown, setShowArtistaDropdown] = useState(false);
+
     const baseUrl = "https://ruser215.freedynamicdns.org/api";
+
+    // --- ESTA FUNCION LIMPIA LAS RUTAS PARA QUE NO TENGAN DOBLE BARRA ---
+    const getSafeUrl = (ruta, fallbackName) => {
+        if (!ruta) return `https://ui-avatars.com/api/?name=${fallbackName}&background=282828&color=1DB954`;
+        const limpia = ruta.startsWith('/') ? ruta.substring(1) : ruta;
+        return `${baseUrl}/${limpia}`;
+    };
 
     const loadData = () => {
         if (!user) return;
@@ -137,7 +151,7 @@ function App() {
             .then(data => { if (Array.isArray(data)) setArtistas(data); })
             .catch(err => console.error("Error al cargar artistas:", err));
 
-        // CARGAMOS LOS ÁLBUMES PARA LOS DESPLEGABLES Y LISTADOS
+        // CARGAMOS LOS ALBUMES PARA LOS DESPLEGABLES Y LISTADOS
         fetch(`${baseUrl}/albums`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setAlbums(data); })
@@ -147,7 +161,7 @@ function App() {
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setListas(data); });
 
-        // COMPROBACIÓN ADMIN SEGURA
+        // COMPROBACION ADMIN SEGURA
         if (user.admin === true || user.admin == 1) {
             fetch(`${baseUrl}/usuarios`, { headers: headersConToken })
                 .then(r => r.json())
@@ -271,7 +285,6 @@ function App() {
                     loadData();
                     alert("Canción guardada correctamente");
                 } else {
-                    // Si el servidor falla, nos dirá el código (401, 500, etc)
                     alert("Error del servidor: " + res.status);
                 }
             })
@@ -282,21 +295,55 @@ function App() {
             });
     };
     const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
-    // Dar Like a una canción
+
+    // 1. FUNCION INTERRUPTOR (Poner y quitar like normal)
     const darLike = (idCancion, likesActuales) => {
-        const nuevosLikes = (likesActuales || 0) + 1;
+        const yaTieneLike = cancionesLikeadas.includes(idCancion);
+        let nuevosLikes = likesActuales || 0;
 
-        // Actualizamos el número en la pantalla al instante
-        setCanciones(canciones.map(c =>
-            c.id === idCancion ? { ...c, likes: nuevosLikes } : c
-        ));
+        if (yaTieneLike) {
+            // Si ya tenia tu like lo quitamos y restamos 1
+            nuevosLikes = Math.max(0, nuevosLikes - 1);
+            setCancionesLikeadas(cancionesLikeadas.filter(id => id !== idCancion));
+        } else {
+            // Si no lo tenia lo ponemos y sumamos 1
+            nuevosLikes = nuevosLikes + 1;
+            setCancionesLikeadas([...cancionesLikeadas, idCancion]);
+        }
 
-        // Avisamos al servidor para que lo guarde de verdad
+        // Actualizamos la pantalla al momento
+        setCanciones(canciones.map(c => c.id === idCancion ? { ...c, likes: nuevosLikes } : c));
+
+        // Guardamos en la base de datos
         fetch(`${baseUrl}/canciones/${idCancion}`, {
             method: 'PATCH',
             headers: getHeaders(),
             body: JSON.stringify({ likes: nuevosLikes })
-        }).catch(err => console.log("Ocultar error si falla el like:", err));
+        }).catch(err => console.log("Error al guardar like:", err));
+    };
+
+    // 2. FUNCION ADMIN (poner el numero exacto que quieras)
+    const cambiarLikesAdmin = (idCancion, likesActuales) => {
+        const input = prompt("¿Qué número exacto de likes quieres ponerle a esta canción?", likesActuales || 0);
+
+        // Si el admin cancela o le da a cerrar no hacemos nada
+        if (input === null) return;
+
+        const nuevosLikes = parseInt(input, 10);
+        if (isNaN(nuevosLikes)) {
+            alert("Por favor, introduce un número válido.");
+            return;
+        }
+
+        // Actualizamos la pantalla
+        setCanciones(canciones.map(c => c.id === idCancion ? { ...c, likes: nuevosLikes } : c));
+
+        // Guardamos
+        fetch(`${baseUrl}/canciones/${idCancion}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ likes: nuevosLikes })
+        }).catch(err => console.log("Error en likes admin:", err));
     };
 
     //  CRUD generos (admin)
@@ -344,8 +391,8 @@ function App() {
                     alert("Artista guardado correctamente");
                 } else { alert("Error al guardar artista."); }
             }).catch(err => {
-                setIsLoading(false);
-                console.log(err);
+            setIsLoading(false);
+            console.log(err);
         });
     };
     const deleteArtista = (id) => fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
@@ -388,8 +435,8 @@ function App() {
                     alert("Álbum guardado correctamente.");
                 } else { alert("Error al guardar álbum."); }
             }).catch(err => {
-                setIsLoading(false);
-                console.log(err);
+            setIsLoading(false);
+            console.log(err);
         });
     };
     const deleteAlbum = (id) => fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
@@ -561,27 +608,6 @@ function App() {
                         style={{ width: '150px', height: '150px', borderRadius: '8px' }}
                         onError={(e) => e.target.style.display = 'none'}
                     />
-
-                    {/* BOTÓN DE DESCARGA APK (Pendiente) */}
-                    <a
-                        href="#"
-                        className="btn-spoti"
-                        style={{
-                            background: '#3DDC84',
-                            color: 'black',
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontWeight: 'bold'
-                        }}
-                        onClick={(e) => {
-                            e.preventDefault(); // Evita que la página salte hacia arriba
-                            alert("¡La app de Android estará disponible muy pronto!");
-                        }}
-                    >
-                        <span>🤖</span> Descargar APK Móvil
-                    </a>
                 </div>
             </div>
         );
@@ -640,7 +666,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.0.4
+                    v1.1.0
                 </div>
             </div>
 
@@ -655,29 +681,76 @@ function App() {
                             <form className="spoti-form" onSubmit={saveCancion} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 <input className="spoti-input" placeholder="Nombre..." value={nombreCancion} onChange={e => setNombreCancion(e.target.value)} required />
 
-                                {/* Artista y Álbum */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                {/* Selección de Artistas (Desplegable con buscador) */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', position: 'relative' }}>
                                     <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Artistas (puedes marcar varios)</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', backgroundColor: '#181818', padding: '10px', borderRadius: '4px', border: '1px solid #333' }}>
-                                        {artistas.map(a => (
-                                            <label key={a.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    value={a.id}
-                                                    checked={artista.includes(a.id.toString())}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
-                                                            setArtista([...artista, e.target.value]);
-                                                        } else {
-                                                            setArtista(artista.filter(id => id !== e.target.value));
-                                                        }
-                                                    }}
-                                                    style={{ transform: 'scale(1.2)' }}
-                                                />
-                                                {a.nombre}
-                                            </label>
-                                        ))}
+
+                                    {/* Botón que simula el desplegable */}
+                                    <div
+                                        className="spoti-input"
+                                        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#181818' }}
+                                        onClick={() => setShowArtistaDropdown(!showArtistaDropdown)}
+                                    >
+                                        <span>{artista.length === 0 ? 'Selecciona uno o varios artistas...' : `${artista.length} artista(s) seleccionado(s)`}</span>
+                                        <span>{showArtistaDropdown ? '▲' : '▼'}</span>
                                     </div>
+
+                                    {/* Menú desplegable flotante */}
+                                    {showArtistaDropdown && (
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                                            backgroundColor: '#282828', border: '1px solid #333', borderRadius: '4px',
+                                            marginTop: '5px', padding: '15px', boxShadow: '0 8px 16px rgba(0,0,0,0.8)'
+                                        }}>
+                                            {/* Buscador */}
+                                            <input
+                                                type="text"
+                                                className="spoti-input"
+                                                placeholder="Buscar artista por nombre..."
+                                                value={searchArtistaForm}
+                                                onChange={e => setSearchArtistaForm(e.target.value)}
+                                                style={{ marginBottom: '15px', padding: '8px' }}
+                                            />
+
+                                            {/* Lista filtrada con scroll */}
+                                            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {artistas.filter(a => a.nombre.toLowerCase().includes(searchArtistaForm.toLowerCase())).length === 0 ? (
+                                                    <p style={{ color: '#b3b3b3', fontSize: '0.9rem', textAlign: 'center' }}>No se encontraron artistas</p>
+                                                ) : (
+                                                    artistas
+                                                        .filter(a => a.nombre.toLowerCase().includes(searchArtistaForm.toLowerCase()))
+                                                        .map(a => (
+                                                            <label key={a.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.95rem', borderBottom: '1px solid #333', paddingBottom: '5px' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    value={a.id}
+                                                                    checked={artista.includes(a.id.toString())}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setArtista([...artista, e.target.value]);
+                                                                        } else {
+                                                                            setArtista(artista.filter(id => id !== e.target.value));
+                                                                        }
+                                                                    }}
+                                                                    style={{ transform: 'scale(1.2)' }}
+                                                                />
+                                                                {a.nombre}
+                                                            </label>
+                                                        ))
+                                                )}
+                                            </div>
+
+                                            {/* Botón para cerrar el desplegable rápido */}
+                                            <button
+                                                type="button"
+                                                className="btn-spoti"
+                                                style={{ marginTop: '15px', width: '100%', padding: '5px' }}
+                                                onClick={() => setShowArtistaDropdown(false)}
+                                            >
+                                                Cerrar lista
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <select className="spoti-input" value={album} onChange={e => setAlbum(e.target.value)} required>
@@ -704,10 +777,8 @@ function App() {
                                                     checked={genero.includes(g.id.toString())}
                                                     onChange={(e) => {
                                                         if (e.target.checked) {
-                                                            // Si lo marca, lo añadimos a la lista
                                                             setGenero([...genero, e.target.value]);
                                                         } else {
-                                                            // Si lo desmarca, lo quitamos de la lista
                                                             setGenero(genero.filter(id => id !== e.target.value));
                                                         }
                                                     }}
@@ -746,98 +817,80 @@ function App() {
                             <p style={{ textAlign: 'center', color: '#b3b3b3' }}>No hay canciones disponibles.</p>
                         ) : (
                             canciones
-                                .filter(c => !filtroAlbumId || c.album?.toString() === filtroAlbumId.toString())
+                                .filter(c => !filtroAlbumId || (c.album?.id || c.albumId || c.album)?.toString() === filtroAlbumId.toString())
                                 .map(c => {
-                                // Para mostrar los nombres de varios artistas juntos
-                                    let nombresArtistasStr = "Artista Desconocido";
-                                    if (c.artista) {
-                                        let listaIds = Array.isArray(c.artista) ? c.artista.map(a => a.id || a) : c.artista.toString().split(',');
-                                        const nombres = listaIds.map(id => {
-                                            let encontrado = artistas.find(a => a.id.toString() === id.toString());
-                                            return encontrado ? encontrado.nombre : null;
-                                        }).filter(n => n);
 
+                                    let nombresArtistasStr = "Artista Desconocido";
+                                    const datoArtista = c.artista || c.artistas || c.artistaId || c.artistaIds;
+
+                                    if (datoArtista) {
+                                        let nombres = [];
+                                        if (Array.isArray(datoArtista) && datoArtista.length > 0 && datoArtista[0].nombre) {
+                                            nombres = datoArtista.map(a => a.nombre);
+                                        } else {
+                                            let listaIds = Array.isArray(datoArtista) ? datoArtista.map(a => a.id || a) : datoArtista.toString().split(',');
+                                            nombres = listaIds.map(id => {
+                                                let encontrado = artistas.find(a => a.id.toString() === id.toString().trim());
+                                                return encontrado ? encontrado.nombre : null;
+                                            }).filter(n => n);
+                                        }
                                         if (nombres.length > 0) {
                                             nombresArtistasStr = nombres.join(' & ');
+                                        } else if (typeof datoArtista === 'string' && isNaN(datoArtista.split(',')[0])) {
+                                            nombresArtistasStr = datoArtista;
                                         }
                                     }
-                                const albumObj = albums.find(al => al.id.toString() === c.album?.toString());
-                                const nombreAlbumStr = albumObj ? albumObj.nombre : c.album;
-                                const urlDelAudio = c.urlAudio ? `${baseUrl}/${c.urlAudio}` : null;
-                                const urlDeLaPortada = c.urlportada || c.urlPortada
-                                    ? `${baseUrl}/${c.urlportada || c.urlPortada}`
-                                    : 'https://ui-avatars.com/api/?name=%F0%9F%8E%B5&background=282828&color=1DB954';
-                                return (
-                                    <div key={c.id} className="song-card">
-                                        <ImagenSegura
-                                            url={urlDeLaPortada}
-                                            token={user.token}
-                                            alt={`Portada de ${c.nombre}`}
-                                            style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
-                                        />
 
-                                        <div className="song-info" style={{ minWidth: '200px' }}>
-                                            <h3>{c.nombre}</h3>
-                                            <p>{nombresArtistasStr} — {nombreAlbumStr}</p>
-                                        </div>
+                                    const idDelAlbum = c.album?.id || c.albumId || c.album;
+                                    const albumObj = albums.find(al => al.id.toString() === idDelAlbum?.toString());
+                                    const nombreAlbumStr = albumObj ? albumObj.nombre : (idDelAlbum || "Desconocido");
+                                    const urlDelAudio = c.urlAudio ? `${baseUrl}/${c.urlAudio}` : null;
 
-                                        {/* CONTADOR DE LIKES */}
-                                        <div
-                                            style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold', cursor: 'pointer' }}
-                                            onClick={() => darLike(c.id, c.likes)}
-                                            title="¡Dar Me Gusta!"
-                                        >
-                                            <span style={{ transition: 'transform 0.1s' }} onMouseDown={e => e.target.style.transform = 'scale(0.8)'} onMouseUp={e => e.target.style.transform = 'scale(1)'}>
-                                                💚
-                                            </span>
-                                            <span>{c.likes || 0}</span>
-                                        </div>
+                                    return (
+                                        <div key={c.id} className="song-card">
+                                            <ImagenSegura url={getSafeUrl(c.urlportada || c.urlPortada, c.nombre)} token={user.token} alt={`Portada de ${c.nombre}`} style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }} />
 
-                                        {/* BOTÓN REPRODUCIR */}
-                                        {urlDelAudio ? (
-                                            <button
-                                                className="btn-spoti"
-                                                style={{ flex: 1, margin: '0 20px' }}
-                                                onClick={() => playSong(canciones.indexOf(c), canciones)}
-                                            >
-                                                ▶ Reproducir
-                                            </button>
-                                        ) : (
-                                            <p style={{ color: '#ff4d4d', fontSize: '0.8rem', flex: 1, textAlign: 'center' }}>
-                                                No hay audio
-                                            </p>
-                                        )}
-
-                                        {(user.admin === true || user.admin == 1) && (
-                                            <div className="actions">
-                                                <button className="btn-edit" onClick={() => {
-                                                    setEditCancionId(c.id);
-                                                    setNombreCancion(c.nombre);
-                                                    let artistasEditados = [];
-                                                    if (Array.isArray(c.artista)) {
-                                                        artistasEditados = c.artista.map(a => a.id ? a.id.toString() : a.toString());
-                                                    } else if (typeof c.artista === 'string') {
-                                                        artistasEditados = c.artista.split(',');
-                                                    } else if (typeof c.artista === 'number') {
-                                                        artistasEditados = [c.artista.toString()];
-                                                    }
-                                                    setArtista(artistasEditados);
-                                                    setAlbum(c.album);
-
-                                                    let generosEditados = [];
-                                                    if (Array.isArray(c.genero)) {
-                                                        generosEditados = c.genero.map(g => g.id ? g.id.toString() : g.toString());
-                                                    } else if (typeof c.genero === 'string') {
-                                                        generosEditados = c.genero.split(',');
-                                                    }
-                                                    setGenero(generosEditados);
-                                                }}>Editar</button>
-                                                <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
+                                            <div className="song-info" style={{ minWidth: '200px' }}>
+                                                <h3>{c.nombre}</h3>
+                                                <p>{nombresArtistasStr} — {nombreAlbumStr}</p>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: '60px', color: '#1DB954', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => darLike(c.id, c.likes)} title="¡Dar Me Gusta!">
+                                                <span style={{ transition: 'transform 0.1s' }} onMouseDown={e => e.target.style.transform = 'scale(0.8)'} onMouseUp={e => e.target.style.transform = 'scale(1)'}>
+                                                    💚
+                                                </span>
+                                                <span>{c.likes || 0}</span>
+                                            </div>
+
+                                            {urlDelAudio ? (
+                                                <button className="btn-spoti" style={{ flex: 1, margin: '0 20px' }} onClick={() => playSong(canciones.indexOf(c), canciones)}>▶ Reproducir</button>
+                                            ) : (
+                                                <p style={{ color: '#ff4d4d', fontSize: '0.8rem', flex: 1, textAlign: 'center' }}>No hay audio</p>
+                                            )}
+
+                                            {(user.admin === true || user.admin == 1) && (
+                                                <div className="actions">
+                                                    <button className="btn-spoti" style={{ backgroundColor: '#1DB954', color: 'black', fontWeight: 'bold', padding: '5px 10px', fontSize: '0.9rem' }} onClick={() => cambiarLikesAdmin(c.id, c.likes)}>
+                                                        Likes
+                                                    </button>
+                                                    <button className="btn-edit" onClick={() => {
+                                                        setEditCancionId(c.id); setNombreCancion(c.nombre);
+                                                        let artistasEditados = [];
+                                                        if (Array.isArray(c.artista)) artistasEditados = c.artista.map(a => a.id ? a.id.toString() : a.toString());
+                                                        else if (typeof c.artista === 'string') artistasEditados = c.artista.split(',');
+                                                        else if (typeof c.artista === 'number') artistasEditados = [c.artista.toString()];
+                                                        setArtista(artistasEditados); setAlbum(c.album);
+                                                        let generosEditados = [];
+                                                        if (Array.isArray(c.genero)) generosEditados = c.genero.map(g => g.id ? g.id.toString() : g.toString());
+                                                        else if (typeof c.genero === 'string') generosEditados = c.genero.split(',');
+                                                        setGenero(generosEditados);
+                                                    }}>Editar</button>
+                                                    <button className="btn-delete" onClick={() => deleteCancion(c.id)}>Borrar</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                         )}
                     </div>
                 </div>
@@ -929,9 +982,8 @@ function App() {
                             artistas.map(a => (
                                 <div key={a.id} className="song-card">
                                     <ImagenSegura
-                                        url={(a.foto || a.urlImagen || a.imagen) ? `${baseUrl}/${String(a.foto || a.urlImagen || a.imagen).replace(/^\/+/, '')}` : `https://ui-avatars.com/api/?name=${a.nombre}&background=282828&color=1DB954`}
+                                        url={getSafeUrl(a.foto || a.urlImagen || a.imagen, a.nombre)}
                                         token={user.token}
-                                        alt={`Foto de ${a.nombre}`}
                                         style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
                                     />
                                     <div className="song-info">
@@ -1004,7 +1056,6 @@ function App() {
                         {albums.length === 0 ? <p style={{ color: '#b3b3b3', textAlign: 'center' }}>No hay álbumes creados.</p> : albums
                             .filter(al => !filtroArtistaId || (al.artista?.id || al.artistaId || al.artista)?.toString() === filtroArtistaId.toString())
                             .map(al => {
-                                // Para mostrar los nombres de varios artistas juntos en el álbum
                                 let nombresArtistasAlbumStr = "Artista Desconocido";
                                 const datoArtista = al.artista || al.artistaId;
 
@@ -1023,15 +1074,11 @@ function App() {
                                     nombresArtistasAlbumStr = nombres.length > 0 ? nombres.join(' & ') : datoArtista.toString();
                                 }
 
-                                const rutaPortada = al.portada || al.urlPortada || al.urlportada;
-                                const urlFinalAlbum = rutaPortada ? `${baseUrl}/${String(rutaPortada).replace(/^\/+/, '')}` : `https://ui-avatars.com/api/?name=${al.nombre}&background=282828&color=1DB954`;
-
                                 return (
                                     <div key={al.id} className="song-card">
                                         <ImagenSegura
-                                            url={urlFinalAlbum}
+                                            url={getSafeUrl(al.portada || al.urlPortada || al.urlportada, al.nombre)}
                                             token={user.token}
-                                            alt={`Portada de ${al.nombre}`}
                                             style={{ width: '50px', height: '50px', borderRadius: '4px', objectFit: 'cover' }}
                                         />
                                         <div className="song-info">
@@ -1069,18 +1116,60 @@ function App() {
             {/* VISTA: LISTAS */}
             {vista === 'listas' && (
                 <div>
-                    <form className="spoti-form" onSubmit={saveLista}>
+                    {/* Formulario para crear lista */}
+                    <form className="spoti-form" onSubmit={saveLista} style={{ marginBottom: '30px' }}>
                         <input className="spoti-input" placeholder="Nombre de lista..." value={nombreLista} onChange={e => setNombreLista(e.target.value)} required />
                         <button className="btn-spoti">Crear</button>
                     </form>
-                    <div className="song-list">
-                        {listas.map(l => (
+
+                    {/* Listado de las listas */}
+                    <div className="song-list" style={{ marginBottom: '30px' }}>
+                        {listas.length === 0 ? <p style={{ color: '#b3b3b3' }}>No tienes listas creadas.</p> : listas.map(l => (
                             <div key={l.id} className="song-card">
                                 <div className="song-info"><h3>{l.nombre}</h3></div>
-                                <div className="actions"><button className="btn-delete" onClick={() => deleteLista(l.id)}>Borrar</button></div>
+                                <div className="actions">
+                                    <button className="btn-spoti" onClick={() => verCancionesDeLista(l.id)}>Ver Canciones</button>
+                                    <button className="btn-delete" onClick={() => deleteLista(l.id)}>Borrar</button>
+                                </div>
                             </div>
                         ))}
                     </div>
+
+                    {/* Panel de canciones de la lista seleccionada */}
+                    {adminSelectedListaId && (
+                        <div style={{ backgroundColor: '#181818', padding: '20px', borderRadius: '8px', border: '1px solid #1DB954' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h2 style={{ color: '#1DB954', fontSize: '1.2rem', margin: 0 }}>Canciones de la lista</h2>
+                                <button className="btn-delete" onClick={() => setAdminSelectedListaId(null)}>Cerrar Panel</button>
+                            </div>
+
+                            {adminCancionesLista.length === 0 ? (
+                                <p style={{ color: '#b3b3b3' }}>La lista está vacía.</p>
+                            ) : (
+                                <div className="song-list">
+                                    {adminCancionesLista.map((c, index) => (
+                                        <div key={c.id} className="song-card" style={{ backgroundColor: '#282828' }}>
+                                            <div className="song-info">
+                                                <h3>{c.nombre}</h3>
+                                            </div>
+                                            <div className="actions">
+                                                {c.urlAudio ? (
+                                                    <button
+                                                        className="btn-spoti"
+                                                        onClick={() => playSong(index, adminCancionesLista)}
+                                                    >
+                                                        ▶ Reproducir
+                                                    </button>
+                                                ) : (
+                                                    <p style={{ color: '#ff4d4d', fontSize: '0.8rem', textAlign: 'center' }}>Sin audio</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
