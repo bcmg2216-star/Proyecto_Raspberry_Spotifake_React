@@ -137,7 +137,10 @@ function App() {
 
         fetch(`${baseUrl}/canciones`, { headers: headersConToken })
             .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setCanciones(data); });
+            .then(data => {
+                console.log("👀 CANCIONES DESDE EL SERVIDOR:", data);
+                if (Array.isArray(data)) setCanciones(data);
+            });
 
         fetch(`${baseUrl}/generos`, { headers: headersConToken })
             .then(r => r.json())
@@ -146,11 +149,9 @@ function App() {
             })
             .catch(err => console.error("Error al cargar géneros:", err));
 
-
         fetch(`${baseUrl}/artistas`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => {
-                console.log("👀 ARTISTAS DESDE EL SERVIDOR:", data); // <-- CHIVATO
                 if (Array.isArray(data)) setArtistas(data);
             })
             .catch(err => console.error("Error al cargar artistas:", err));
@@ -159,11 +160,9 @@ function App() {
         fetch(`${baseUrl}/albums`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => {
-                console.log("👀 ÁLBUMES DESDE EL SERVIDOR:", data); // <-- CHIVATO
                 if (Array.isArray(data)) setAlbums(data);
             })
             .catch(err => console.error("Error al cargar álbumes:", err));
-
 
         fetch(`${baseUrl}/usuarios/${user.id}/listas`, { headers: headersConToken })
             .then(r => r.json())
@@ -265,7 +264,6 @@ function App() {
     // CRUD canciones
     const saveCancion = (e) => {
         e.preventDefault();
-
         setIsLoading(true);
 
         const method = editCancionId ? 'PATCH' : 'POST';
@@ -273,13 +271,21 @@ function App() {
 
         const formData = new FormData();
         formData.append('nombre', nombreCancion);
-        formData.append('artistaIds', artista.join(','));
         formData.append('albumId', album);
-        formData.append('generosIds', genero.join(','));
         formData.append('likes', 0);
 
+        // Le añadimos los corchetes [] para que el servidor sepa que es una lista
+        if (artista && artista.length > 0) {
+            artista.forEach(id => formData.append('artistaIds[]', id));
+        }
+
+        // Le añadimos los corchetes [] también a los géneros
+        if (genero && genero.length > 0) {
+            genero.forEach(id => formData.append('generosIds[]', id));
+        }
+
         const inputAudio = document.getElementById('audioInput');
-        if (inputAudio.files[0]) formData.append('audio', inputAudio.files[0]);
+        if (inputAudio && inputAudio.files[0]) formData.append('audio', inputAudio.files[0]);
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
@@ -423,8 +429,10 @@ function App() {
         const formData = new FormData();
         formData.append('nombre', nombreAlbumNuevo);
 
-        // Le mandamos los IDs separados por comas
-        formData.append('artistaId', artistaAlbumNuevo.join(','));
+        // Le añadimos los corchetes [] para los álbumes
+        if (artistaAlbumNuevo && artistaAlbumNuevo.length > 0) {
+            artistaAlbumNuevo.forEach(id => formData.append('artistaId[]', id));
+        }
 
         const inputPortada = document.getElementById('portadaAlbumInput');
         if (inputPortada && inputPortada.files[0]) {
@@ -674,7 +682,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.1.2
+                    v1.1.4
                 </div>
             </div>
 
@@ -830,7 +838,7 @@ function App() {
 
                                     // --- ARTISTAS ---
                                     let nombresArtistasStr = "Artista Desconocido";
-                                    const datoArtista = c.artista || c.artistas || c.artistaId || c.artistaIds;
+                                    const datoArtista = c.artistaIds || c.artistas || c.artista || c.artistaId;
 
                                     if (datoArtista) {
                                         let nombres = [];
@@ -852,7 +860,7 @@ function App() {
 
                                     // --- GÉNEROS ---
                                     let nombresGenerosStr = "Sin género";
-                                    const datoGenero = c.genero || c.generos || c.generoId || c.generosIds;
+                                    const datoGenero = c.generosIds || c.generos || c.genero || c.generoId;
 
                                     if (datoGenero) {
                                         let nombresG = [];
