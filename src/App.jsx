@@ -191,6 +191,8 @@ function App() {
     // Gestión de login y registro
     const handleAuth = (e) => {
         e.preventDefault();
+        setIsLoading(true);
+
         if (isRegister) {
             fetch(`${baseUrl}/register?t=${Date.now()}`, {
                 method: 'POST',
@@ -200,10 +202,11 @@ function App() {
                 })
             }).then(r => {
                 if (r.ok) {
-                    alert("¡Cuenta creada! Ya puedes entrar.");
                     setIsRegister(false);
                 } else alert("Error al registrar el usuario.");
-            });
+            })
+                .catch(() => alert("No se pudo conectar con el servidor"))
+                .finally(() => setIsLoading(false));
 
         } else {
             fetch(`${baseUrl}/login`, {
@@ -216,7 +219,9 @@ function App() {
                 } else {
                     alert("Correo o contraseña incorrectos.");
                 }
-            });
+            })
+                .catch(() => alert("No se pudo conectar con el servidor"))
+                .finally(() => setIsLoading(false));
         }
     };
 
@@ -261,7 +266,7 @@ function App() {
         'ngrok-skip-browser-warning': 'true'
     });
 
-    // CRUD canciones
+// CRUD canciones
     const saveCancion = (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -274,14 +279,12 @@ function App() {
         formData.append('albumId', album);
         formData.append('likes', 0);
 
-        // Le añadimos los corchetes [] para que el servidor sepa que es una lista
         if (artista && artista.length > 0) {
-            artista.forEach(id => formData.append('artistaIds[]', id));
+            artista.forEach(id => formData.append('artistaIds', id));
         }
 
-        // Le añadimos los corchetes [] también a los géneros
         if (genero && genero.length > 0) {
-            genero.forEach(id => formData.append('generosIds[]', id));
+            genero.forEach(id => formData.append('generosIds', id));
         }
 
         const inputAudio = document.getElementById('audioInput');
@@ -289,7 +292,6 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
-                setIsLoading(false);
                 if (res.ok) {
                     setNombreCancion('');
                     setArtista([]);
@@ -297,18 +299,21 @@ function App() {
                     setGenero([]);
                     setEditCancionId(null);
                     loadData();
-                    alert("Canción guardada correctamente");
                 } else {
                     alert("Error del servidor: " + res.status);
                 }
             })
-            .catch(err => {
-                setIsLoading(false);
-                alert("No se pudo conectar con el servidor");
-                console.log(err);
-            });
+            .catch(err => alert("No se pudo conectar con el servidor"))
+            .finally(() => setIsLoading(false));
     };
-    const deleteCancion = (id) => fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    const deleteCancion = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar la canción"); loadData(); })
+            .catch(() => alert("Error de conexión"))
+            .finally(() => setIsLoading(false));
+    };
 
     // 1. FUNCION INTERRUPTOR (Poner y quitar like normal)
     const darLike = (idCancion, likesActuales) => {
@@ -316,31 +321,32 @@ function App() {
         let nuevosLikes = likesActuales || 0;
 
         if (yaTieneLike) {
-            // Si ya tenia tu like lo quitamos y restamos 1
             nuevosLikes = Math.max(0, nuevosLikes - 1);
             setCancionesLikeadas(cancionesLikeadas.filter(id => id !== idCancion));
         } else {
-            // Si no lo tenia lo ponemos y sumamos 1
             nuevosLikes = nuevosLikes + 1;
             setCancionesLikeadas([...cancionesLikeadas, idCancion]);
         }
 
-        // Actualizamos la pantalla al momento
         setCanciones(canciones.map(c => c.id === idCancion ? { ...c, likes: nuevosLikes } : c));
 
-        // Guardamos en la base de datos
+        setIsLoading(true);
+        const formData = new FormData();
+        formData.append('likes', nuevosLikes);
+
         fetch(`${baseUrl}/canciones/${idCancion}`, {
             method: 'PATCH',
-            headers: getHeaders(),
-            body: JSON.stringify({ likes: nuevosLikes })
-        }).catch(err => console.log("Error al guardar like:", err));
+            headers: getMultipartHeaders(),
+            body: formData
+        })
+            .then(res => { if(!res.ok) alert("No se pudo guardar el like en el servidor"); })
+            .catch(err => alert("Error de red al dar like"))
+            .finally(() => setIsLoading(false));
     };
 
     // 2. FUNCION ADMIN (poner el numero exacto que quieras)
     const cambiarLikesAdmin = (idCancion, likesActuales) => {
         const input = prompt("¿Qué número exacto de likes quieres ponerle a esta canción?", likesActuales || 0);
-
-        // Si el admin cancela o le da a cerrar no hacemos nada
         if (input === null) return;
 
         const nuevosLikes = parseInt(input, 10);
@@ -349,38 +355,52 @@ function App() {
             return;
         }
 
-        // Actualizamos la pantalla
         setCanciones(canciones.map(c => c.id === idCancion ? { ...c, likes: nuevosLikes } : c));
 
-        // Guardamos
+        setIsLoading(true);
+        const formData = new FormData();
+        formData.append('likes', nuevosLikes);
+
         fetch(`${baseUrl}/canciones/${idCancion}`, {
             method: 'PATCH',
-            headers: getHeaders(),
-            body: JSON.stringify({ likes: nuevosLikes })
-        }).catch(err => console.log("Error en likes admin:", err));
+            headers: getMultipartHeaders(),
+            body: formData
+        })
+            .then(res => { if(!res.ok) alert("Error en el servidor al cambiar likes"); })
+            .catch(err => alert("Error de red"))
+            .finally(() => setIsLoading(false));
     };
 
     //  CRUD generos (admin)
     const saveGenero = (e) => {
         e.preventDefault();
+        setIsLoading(true);
         const method = editGeneroId ? 'PATCH' : 'POST';
         const url = editGeneroId ? `${baseUrl}/generos/${editGeneroId}` : `${baseUrl}/generos`;
 
         fetch(url, { method: method, headers: getHeaders(), body: JSON.stringify({ nombre: nombreGenero }) })
-            .then(() =>{
-                setNombreGenero('');
-                setEditGeneroId(null);
-                loadData();
-                alert("Genero guardado correctamente");
+            .then(res => {
+                if(res.ok) {
+                    setNombreGenero('');
+                    setEditGeneroId(null);
+                    loadData();
+                } else { alert("Error al guardar género"); }
             })
-            .catch(err => console.log(err));
+            .catch(err => alert("Error de red"))
+            .finally(() => setIsLoading(false));
     };
-    const deleteGenero = (id) => fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    const deleteGenero = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar género"); loadData(); })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
+    };
 
     // CRUD artistas (admin)
     const saveArtista = (e) => {
         e.preventDefault();
-
         setIsLoading(true);
 
         const method = editArtistaId ? 'PATCH' : 'POST';
@@ -396,20 +416,24 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
-                setIsLoading(false);
                 if(res.ok) {
                     setNombreArtistaNuevo('');
                     setEditArtistaId(null);
                     if(inputFoto) inputFoto.value = '';
                     loadData();
-                    alert("Artista guardado correctamente");
                 } else { alert("Error al guardar artista."); }
-            }).catch(err => {
-            setIsLoading(false);
-            console.log(err);
-        });
+            })
+            .catch(err => alert("Error de red"))
+            .finally(() => setIsLoading(false));
     };
-    const deleteArtista = (id) => fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    const deleteArtista = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar artista"); loadData(); })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
+    };
 
     // CRUD albums (admin)
     const saveAlbum = (e) => {
@@ -431,7 +455,7 @@ function App() {
 
         // Le añadimos los corchetes [] para los álbumes
         if (artistaAlbumNuevo && artistaAlbumNuevo.length > 0) {
-            artistaAlbumNuevo.forEach(id => formData.append('artistaId[]', id));
+            artistaAlbumNuevo.forEach(id => formData.append('artistaId', id));
         }
 
         const inputPortada = document.getElementById('portadaAlbumInput');
@@ -441,28 +465,30 @@ function App() {
 
         fetch(url, { method: method, headers: getMultipartHeaders(), body: formData })
             .then(res => {
-                setIsLoading(false);
                 if (res.ok) {
                     setNombreAlbumNuevo('');
                     setArtistaAlbumNuevo([]);
                     setEditAlbumId(null);
                     if (inputPortada) inputPortada.value = '';
                     loadData();
-                    alert("Álbum guardado correctamente.");
                 } else { alert("Error al guardar álbum."); }
-            }).catch(err => {
-            setIsLoading(false);
-            console.log(err);
-        });
+            })
+            .catch(err => alert("Error de red"))
+            .finally(() => setIsLoading(false));
     };
-    const deleteAlbum = (id) => fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    const deleteAlbum = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar álbum"); loadData(); })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
+    };
 
     // CRUD usuarios (admin)
     const saveUsuario = (e) => {
         e.preventDefault();
-
         setIsLoading(true);
-
         if(!editUserId) return;
 
         // 1. Preparamos los datos de texto (JSON normal)
@@ -479,7 +505,6 @@ function App() {
             method: 'PATCH', headers: getHeaders(),
             body: JSON.stringify(bodyData)
         }).then(res => {
-            setIsLoading(false);
             if(res.ok) {
                 // 3. Si el texto se guardó bien, comprobamos si el admin seleccionó una foto
                 const inputFoto = document.getElementById('fotoPerfilInput');
@@ -495,13 +520,15 @@ function App() {
                         headers: getMultipartHeaders(),
                         body: formData
                     }).then(resFoto => {
-                        setIsLoading(false);
                         if (resFoto.ok) {
                             cerrarYRecargarUsuario();
                         } else {
                             alert("Datos actualizados, pero la foto dio error.");
                             cerrarYRecargarUsuario();
                         }
+                    }).catch(() => {
+                        alert("Error al subir la foto");
+                        cerrarYRecargarUsuario();
                     });
                 } else {
                     // Si no había foto seleccionada, terminamos y recargamos directamente
@@ -509,10 +536,11 @@ function App() {
                 }
             } else {
                 alert("Error al actualizar los datos de texto del usuario.");
+                setIsLoading(false);
             }
         }).catch(err => {
+            alert("Error de red");
             setIsLoading(false);
-            console.log(err);
         });
     };
 
@@ -527,9 +555,16 @@ function App() {
         const inputFoto = document.getElementById('fotoPerfilInput');
         if (inputFoto) inputFoto.value = '';
         loadData();
+        setIsLoading(false);
     };
 
-    const deleteUsuario = (id) => fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+    const deleteUsuario = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar usuario"); loadData(); })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
+    };
 
     // Buscar usuarios
     const handleSearchUsuario = (e) => {
@@ -538,65 +573,87 @@ function App() {
             loadData(); // Si está vacío, recargamos todos
             return;
         }
+        setIsLoading(true);
         fetch(`${baseUrl}/usuarios/correo/${searchCorreo.trim()}`, { headers: getHeaders() })
             .then(r => {
                 if (r.ok) return r.json();
                 throw new Error('No encontrado');
             })
-            .then(data => {
-                setUsuarios([data]); // Lo metemos en un array para que el listado funcione igual
-            })
-            .catch(() => {
-                setUsuarios([]); // Si da error , mostramos la lista vacía
-            });
+            .then(data => { setUsuarios([data]); })
+            .catch(() => { setUsuarios([]); alert("Usuario no encontrado"); })
+            .finally(() => setIsLoading(false));
     };
 
     // CRUD Listas (admin)
     const saveLista = (e) => {
         e.preventDefault();
+        setIsLoading(true);
         fetch(`${baseUrl}/listas`, {
             method: 'POST', headers: getHeaders(),
-            body: JSON.stringify({
-                nombre: nombreLista, idUsuario: user.id
-            })
-        }).then(() => {setNombreLista(''); loadData();
-            alert("Lista guardada correctamente");
+            body: JSON.stringify({ nombre: nombreLista, idUsuario: user.id })
         })
+            .then(res => {
+                if(res.ok) {
+                    setNombreLista('');
+                    loadData();
+                } else { alert("Error al crear lista"); }
+            })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
     };
-    const deleteLista = (id) => fetch(`${baseUrl}/listas/${id}`, {method: 'DELETE', headers: getHeaders()}).then(loadData);
+
+    const deleteLista = (id) => {
+        setIsLoading(true);
+        fetch(`${baseUrl}/listas/${id}`, {method: 'DELETE', headers: getHeaders()})
+            .then(res => { if(!res.ok) alert("Error al borrar lista"); loadData(); })
+            .catch(() => alert("Error de red"))
+            .finally(() => setIsLoading(false));
+    };
 
     // Gestionar listas de usuarios
     const verListasDeUsuario = (idUsuario) => {
+        setIsLoading(true);
         setAdminSelectedUserId(idUsuario);
         setAdminSelectedListaId(null);
         fetch(`${baseUrl}/usuarios/${idUsuario}/listas`, { headers: getHeaders() })
             .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setAdminUserListas(data); });
+            .then(data => { if (Array.isArray(data)) setAdminUserListas(data); })
+            .catch(() => alert("Error al cargar las listas del usuario"))
+            .finally(() => setIsLoading(false));
     };
 
     const adminDeleteLista = (idLista) => {
+        setIsLoading(true);
         fetch(`${baseUrl}/listas/${idLista}`, {method: 'DELETE', headers: getHeaders()})
-            .then(() => verListasDeUsuario(adminSelectedUserId));
+            .then(res => { if(!res.ok) alert("Error al borrar lista"); verListasDeUsuario(adminSelectedUserId); })
+            .catch(() => { alert("Error de red"); setIsLoading(false); });
     };
 
     const adminSaveLista = (e) => {
         e.preventDefault();
+        setIsLoading(true);
         fetch(`${baseUrl}/listas/${adminEditListaId}`, {
             method: 'PATCH', headers: getHeaders(),
             body: JSON.stringify({ nombre: adminEditListaNombre, idUsuario: adminSelectedUserId })
-        }).then(() => {
-            setAdminEditListaId(null);
-            setAdminEditListaNombre('');
-            verListasDeUsuario(adminSelectedUserId);
-        });
+        })
+            .then(res => {
+                if(res.ok) {
+                    setAdminEditListaId(null);
+                    setAdminEditListaNombre('');
+                    verListasDeUsuario(adminSelectedUserId);
+                } else { alert("Error al editar nombre de la lista"); setIsLoading(false); }
+            })
+            .catch(() => { alert("Error de red"); setIsLoading(false); });
     };
 
     const verCancionesDeLista = (idLista) => {
+        setIsLoading(true);
         setAdminSelectedListaId(idLista);
         fetch(`${baseUrl}/listas/${idLista}/canciones`, { headers: getHeaders() })
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setAdminCancionesLista(data); })
-            .catch(() => setAdminCancionesLista([]));
+            .catch(() => { setAdminCancionesLista([]); alert("Error al cargar canciones de la lista"); })
+            .finally(() => setIsLoading(false));
     };
 
     // Pantalla login/registro (si no hay usuario)
@@ -682,7 +739,7 @@ function App() {
                     fontSize: '0.7rem',
                     pointerEvents: 'none' // Para que no moleste si haces clic ahí
                 }}>
-                    v1.1.4
+                    v1.1.5
                 </div>
             </div>
 
