@@ -138,7 +138,6 @@ function App() {
         fetch(`${baseUrl}/canciones`, { headers: headersConToken })
             .then(r => r.json())
             .then(data => {
-                console.log("👀 CANCIONES DESDE EL SERVIDOR:", data);
                 if (Array.isArray(data)) setCanciones(data);
             });
 
@@ -266,7 +265,7 @@ function App() {
         'ngrok-skip-browser-warning': 'true'
     });
 
-// CRUD canciones
+    // CRUD canciones
     const saveCancion = (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -309,9 +308,12 @@ function App() {
 
     const deleteCancion = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/canciones/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar la canción"); loadData(); })
-            .catch(() => alert("Error de conexión"))
+        fetch(`${baseUrl}/canciones/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
+            .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
 
@@ -392,8 +394,11 @@ function App() {
 
     const deleteGenero = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/generos/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar género"); loadData(); })
+        fetch(`${baseUrl}/generos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
             .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
@@ -429,8 +434,11 @@ function App() {
 
     const deleteArtista = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/artistas/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar artista"); loadData(); })
+        fetch(`${baseUrl}/artistas/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
             .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
@@ -479,8 +487,11 @@ function App() {
 
     const deleteAlbum = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/albums/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar álbum"); loadData(); })
+        fetch(`${baseUrl}/albums/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
             .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
@@ -560,8 +571,11 @@ function App() {
 
     const deleteUsuario = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/usuarios/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar usuario"); loadData(); })
+        fetch(`${baseUrl}/usuarios/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
             .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
@@ -604,8 +618,11 @@ function App() {
 
     const deleteLista = (id) => {
         setIsLoading(true);
-        fetch(`${baseUrl}/listas/${id}`, {method: 'DELETE', headers: getHeaders()})
-            .then(res => { if(!res.ok) alert("Error al borrar lista"); loadData(); })
+        fetch(`${baseUrl}/listas/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${user.token}`, 'ngrok-skip-browser-warning': 'true' }
+        })
+            .then(res => { if(!res.ok) alert("Error al borrar"); loadData(); })
             .catch(() => alert("Error de red"))
             .finally(() => setIsLoading(false));
     };
