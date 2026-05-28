@@ -117,6 +117,10 @@ function App() {
     const [searchArtistaForm, setSearchArtistaForm] = useState('');
     const [showArtistaDropdown, setShowArtistaDropdown] = useState(false);
 
+    // Estados para el buscador de géneros en el formulario de canciones
+    const [searchGeneroForm, setSearchGeneroForm] = useState('');
+    const [showGeneroDropdown, setShowGeneroDropdown] = useState(false);
+
     const baseUrl = "https://ruser215.freedynamicdns.org/api";
 
     // --- ESTA FUNCION LIMPIA LAS RUTAS PARA QUE NO TENGAN DOBLE BARRA ---
@@ -855,29 +859,76 @@ function App() {
                                     <input id="audioInput" className="spoti-input" type="file" accept="audio/*" required={!editCancionId} />
                                 </div>
 
-                                {/* DESPLEGABLE DE GÉNERO */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                {/* Selección de Géneros (Desplegable con buscador) */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', position: 'relative' }}>
                                     <label style={{ fontSize: '0.8rem', color: '#b3b3b3' }}>Géneros (puedes marcar varios)</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', backgroundColor: '#181818', padding: '10px', borderRadius: '4px', border: '1px solid #333' }}>
-                                        {generos.map(g => (
-                                            <label key={g.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    value={g.id}
-                                                    checked={genero.includes(g.id.toString())}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
-                                                            setGenero([...genero, e.target.value]);
-                                                        } else {
-                                                            setGenero(genero.filter(id => id !== e.target.value));
-                                                        }
-                                                    }}
-                                                    style={{ transform: 'scale(1.2)' }}
-                                                />
-                                                {g.nombre}
-                                            </label>
-                                        ))}
+
+                                    {/* Botón que simula el desplegable */}
+                                    <div
+                                        className="spoti-input"
+                                        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#181818' }}
+                                        onClick={() => setShowGeneroDropdown(!showGeneroDropdown)}
+                                    >
+                                        <span>{genero.length === 0 ? 'Selecciona uno o varios géneros...' : `${genero.length} género(s) seleccionado(s)`}</span>
+                                        <span>{showGeneroDropdown ? '▲' : '▼'}</span>
                                     </div>
+
+                                    {/* Menú desplegable flotante */}
+                                    {showGeneroDropdown && (
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 11,
+                                            backgroundColor: '#282828', border: '1px solid #333', borderRadius: '4px',
+                                            marginTop: '5px', padding: '15px', boxShadow: '0 8px 16px rgba(0,0,0,0.8)'
+                                        }}>
+                                            {/* Buscador */}
+                                            <input
+                                                type="text"
+                                                className="spoti-input"
+                                                placeholder="Buscar género por nombre..."
+                                                value={searchGeneroForm}
+                                                onChange={e => setSearchGeneroForm(e.target.value)}
+                                                style={{ marginBottom: '15px', padding: '8px' }}
+                                            />
+
+                                            {/* Lista filtrada con scroll */}
+                                            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {generos.filter(g => g.nombre.toLowerCase().includes(searchGeneroForm.toLowerCase())).length === 0 ? (
+                                                    <p style={{ color: '#b3b3b3', fontSize: '0.9rem', textAlign: 'center' }}>No se encontraron géneros</p>
+                                                ) : (
+                                                    generos
+                                                        .filter(g => g.nombre.toLowerCase().includes(searchGeneroForm.toLowerCase()))
+                                                        .map(g => (
+                                                            <label key={g.id} style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.95rem', borderBottom: '1px solid #333', paddingBottom: '5px' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    value={g.id}
+                                                                    checked={genero.includes(g.id.toString())}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setGenero([...genero, e.target.value]);
+                                                                        } else {
+                                                                            setGenero(genero.filter(id => id !== e.target.value));
+                                                                        }
+                                                                    }}
+                                                                    style={{ transform: 'scale(1.2)' }}
+                                                                />
+                                                                {g.nombre}
+                                                            </label>
+                                                        ))
+                                                )}
+                                            </div>
+
+                                            {/* Botón para cerrar el desplegable rápido */}
+                                            <button
+                                                type="button"
+                                                className="btn-spoti"
+                                                style={{ marginTop: '15px', width: '100%', padding: '5px' }}
+                                                onClick={() => setShowGeneroDropdown(false)}
+                                            >
+                                                Cerrar lista
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <button className="btn-spoti" style={{ marginTop: '10px' }}>
