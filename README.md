@@ -19,7 +19,7 @@ Este es el código del frontend de **Spotifake**, un clon de Spotify hecho con R
 - React + Vite
 - CSS normal (App.css)
 - Fetch API (Gestión de peticiones JSON y `multipart/form-data`)
-- Docker (Nginx) configurado para arquitectura ARM (Raspberry Pi)
+- Docker configurado para arquitectura ARM (Raspberry Pi)
 
 ## Para probarlo en local
 Si quieres bajarte el código y probarlo en tu PC:
